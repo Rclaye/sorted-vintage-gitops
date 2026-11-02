@@ -1,0 +1,70 @@
+# Traefik (T018, research R18): the lab's only front door. One replica on the Kind node, bound
+# with hostPort to the node's 80 and 443, which Kind maps to the mini's loopback only (R2).
+# The mkcert *.sortedvtg.lan certificate (Terraform, T012) is the default for every host.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: traefik
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: default
+  source:
+    repoURL: https://traefik.github.io/charts
+    chart: traefik
+    targetRevision: 42.2.0
+    helm:
+      valuesObject:
+        deployment:
+          replicas: 1
+        # With hostPorts on one node, a surge pod can never bind; replace in place instead.
+        updateStrategy:
+          type: RollingUpdate
+          rollingUpdate:
+            maxUnavailable: 1
+            maxSurge: 0
+        nodeSelector:
+          ingress-ready: "true"
+        tolerations:
+          - key: node-role.kubernetes.io/control-plane
+            operator: Exists
+            effect: NoSchedule
+        ports:
+          web:
+            hostPort: 80
+            http:
+              redirections:
+                entryPoint:
+                  to: websecure
+                  scheme: https
+                  permanent: true
+          websecure:
+            hostPort: 443
+        service:
+          type: ClusterIP
+        ingressClass:
+          enabled: true
+          isDefaultClass: true
+        providers:
+          kubernetesIngress:
+            enabled: true
+          kubernetesCRD:
+            enabled: true
+        tlsStore:
+          default:
+            defaultCertificate:
+              secretName: sortedvtg-lan-tls
+        resources:
+          requests: { cpu: 50m, memory: 64Mi }
+          limits: { memory: 192Mi }
+  destination:
+    server: https://kubernetes.default.svc
+    # Created by Terraform with the TLS Secret (plan: Complexity Tracking).
+    namespace: traefik
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - ServerSideApply=true
