@@ -52,6 +52,12 @@ spec:
         providers:
           kubernetesIngress:
             enabled: true
+            # Write 127.0.0.1 (the only address the lab answers on, research R2) into each Ingress's
+            # status; Argo CD reports an Ingress Healthy only once its status has an address.
+            publishedService:
+              enabled: false
+            ingressEndpoint:
+              ip: 127.0.0.1
           kubernetesCRD:
             enabled: true
         tlsStore:
