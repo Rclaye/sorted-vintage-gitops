@@ -1,0 +1,24 @@
+# App of apps over platform/ (T016). Each platform/<component>/application.yaml is one Argo CD
+# Application; sync waves order them (CRDs and operators first), and Argo CD waits for each
+# wave's Applications to be Healthy before the next.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: platform
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Rclaye/sorted-vintage-gitops.git
+    targetRevision: main
+    path: platform
+    directory:
+      recurse: true
+      include: "*/application.yaml"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true

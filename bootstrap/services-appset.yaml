@@ -1,0 +1,33 @@
+# One Application per service and environment (T016, FR-025): services/<service>/overlays/<env>
+# becomes <service>-<env> in namespace sv-<env>.
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: services
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - git:
+        repoURL: https://github.com/Rclaye/sorted-vintage-gitops.git
+        revision: main
+        directories:
+          - path: services/*/overlays/*
+  template:
+    metadata:
+      name: "{{ index .path.segments 1 }}-{{ .path.basename }}"
+      namespace: argocd
+    spec:
+      project: default
+      source:
+        repoURL: https://github.com/Rclaye/sorted-vintage-gitops.git
+        targetRevision: main
+        path: "{{ .path.path }}"
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: "sv-{{ .path.basename }}"
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
