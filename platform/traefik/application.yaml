@@ -41,8 +41,11 @@ spec:
                   permanent: true
           websecure:
             hostPort: 443
+        # Kind has no load balancer, so a LoadBalancer Service stays pending and Argo CD reports
+        # the app as Progressing forever. Traffic arrives through the hostPorts above instead.
         service:
-          type: ClusterIP
+          spec:
+            type: ClusterIP
         ingressClass:
           enabled: true
           isDefaultClass: true
