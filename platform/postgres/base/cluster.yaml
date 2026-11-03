@@ -1,0 +1,72 @@
+# One Postgres per environment, a database and role per service (T021). Passwords come from the
+# Terraform-created pg-<db>-app Secrets, so a restored cluster still matches them.
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: pg
+spec:
+  instances: 1
+  storage:
+    size: 2Gi
+  resources:
+    requests: { cpu: 100m, memory: 256Mi }
+    limits: { memory: 512Mi }
+  bootstrap:
+    initdb:
+      database: listings
+      owner: listings
+      secret: { name: pg-listings-app }
+  managed:
+    roles:
+      - { name: orders, login: true, passwordSecret: { name: pg-orders-app } }
+      - { name: payments, login: true, passwordSecret: { name: pg-payments-app } }
+      - { name: notifications, login: true, passwordSecret: { name: pg-notifications-app } }
+  postgresql:
+    parameters:
+      # Bounds data loss to about a minute when a session ends (research R14).
+      archive_timeout: "60s"
+  plugins:
+    - name: barman-cloud.cloudnative-pg.io
+      isWALArchiver: true
+      parameters:
+        barmanObjectName: backups
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: orders
+spec:
+  name: orders
+  owner: orders
+  cluster: { name: pg }
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: payments
+spec:
+  name: payments
+  owner: payments
+  cluster: { name: pg }
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: notifications
+spec:
+  name: notifications
+  owner: notifications
+  cluster: { name: pg }
+---
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: pg-daily
+spec:
+  schedule: "0 0 3 * * *"
+  immediate: true
+  backupOwnerReference: self
+  cluster: { name: pg }
+  method: plugin
+  pluginConfiguration:
+    name: barman-cloud.cloudnative-pg.io

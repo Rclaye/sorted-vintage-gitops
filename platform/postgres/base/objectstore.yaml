@@ -1,0 +1,18 @@
+# Where this environment's Postgres archives WAL and base backups: its own Garage, bucket backups
+# (infra research R10, R14, R19). The key comes from the Terraform-created Secret s3-backups.
+apiVersion: barmancloud.cnpg.io/v1
+kind: ObjectStore
+metadata:
+  name: backups
+spec:
+  retentionPolicy: "14d"
+  configuration:
+    destinationPath: s3://backups/postgres
+    endpointURL: http://garage:3900
+    s3Credentials:
+      accessKeyId: { name: s3-backups, key: ACCESS_KEY_ID }
+      secretAccessKey: { name: s3-backups, key: ACCESS_SECRET_KEY }
+    wal:
+      compression: gzip
+    data:
+      compression: gzip
