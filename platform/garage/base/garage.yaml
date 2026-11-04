@@ -1,3 +1,17 @@
+# Neither Garage nor its setup Job calls the Kubernetes API, so each has its own ServiceAccount
+# and no API token is mounted (Constitution VI, T112).
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: garage
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: garage-setup
+automountServiceAccountToken: false
+---
 apiVersion: v1
 kind: Service
 metadata:
@@ -23,27 +37,15 @@ spec:
     metadata:
       labels: { app.kubernetes.io/name: garage }
     spec:
+      serviceAccountName: garage
+      automountServiceAccountToken: false
+      # No root step: the data is on Docker Desktop's virtiofs mount, which does not enforce
+      # ownership, so uid 1000 creates and writes meta/ and data/ itself (infra spikes.md, T108).
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
         runAsGroup: 1000
         seccompProfile: { type: RuntimeDefault }
-      initContainers:
-        # The data lives on a host path (the Kind extraMount), which fsGroup cannot re-own.
-        # This one step runs as root with only CHOWN, so Garage itself never needs root.
-        - name: own-data
-          image: busybox:1.37
-          command: ["sh", "-c", "mkdir -p /var/lib/garage/meta /var/lib/garage/data && chown -R 1000:1000 /var/lib/garage"]
-          securityContext:
-            runAsNonRoot: false
-            runAsUser: 0
-            allowPrivilegeEscalation: false
-            capabilities: { drop: ["ALL"], add: ["CHOWN"] }
-          resources:
-            requests: { cpu: 10m, memory: 8Mi }
-            limits: { memory: 32Mi }
-          volumeMounts:
-            - { name: data, mountPath: /var/lib/garage }
       containers:
         - name: garage
           image: dxflrs/garage:v2.5.0
@@ -101,6 +103,8 @@ spec:
   template:
     spec:
       restartPolicy: OnFailure
+      serviceAccountName: garage-setup
+      automountServiceAccountToken: false
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
