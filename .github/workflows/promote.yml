@@ -1,0 +1,73 @@
+# Promotion (T030, ADR-0002): opens a pull request that copies a service's dev image tag into its
+# prod overlay. The pull request is made by the sv-deployer GitHub App, so the checks run on it
+# (pull requests opened with GITHUB_TOKEN start no workflows). Auto-merge is turned on, but the
+# required prod-gate check waits for approval in the prod environment, so nothing reaches prod
+# until the owner approves. Rollback is `git revert` of the merged promotion, through the same gate.
+name: promote
+
+on:
+  workflow_dispatch:
+    inputs:
+      service:
+        description: Service to promote (a directory under services/)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: promote-${{ inputs.service }}
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    name: promote
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - id: app
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.SV_DEPLOYER_CLIENT_ID }}
+          private-key: ${{ secrets.SV_DEPLOYER_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ steps.app.outputs.token }}
+      - name: Copy the dev tag to prod
+        id: tag
+        env:
+          SERVICE: ${{ inputs.service }}
+        run: |
+          set -euo pipefail
+          tag="$(scripts/set-image-tag.py get "$SERVICE" dev)"
+          if [ "$tag" = "unset" ]; then
+            echo "::error::$SERVICE has no dev image yet"; exit 1
+          fi
+          if [ "$(scripts/set-image-tag.py get "$SERVICE" prod)" = "$tag" ]; then
+            echo "::notice::prod already runs $tag"; echo "changed=false" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          scripts/set-image-tag.py set "$SERVICE" prod "$tag" --first-replicas 2
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+      - name: Open the promotion pull request
+        if: steps.tag.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app.outputs.token }}
+          SERVICE: ${{ inputs.service }}
+          TAG: ${{ steps.tag.outputs.tag }}
+          APP_SLUG: ${{ steps.app.outputs.app-slug }}
+        run: |
+          set -euo pipefail
+          user_id="$(gh api "/users/${APP_SLUG}[bot]" --jq .id)"
+          git config user.name "${APP_SLUG}[bot]"
+          git config user.email "${user_id}+${APP_SLUG}[bot]@users.noreply.github.com"
+          branch="promote/${SERVICE}-${TAG}"
+          git switch -c "$branch"
+          git commit -am "deploy: promote ${SERVICE} ${TAG} to prod"
+          git push origin "$branch"
+          gh pr create --base main --head "$branch" \
+            --title "deploy: promote ${SERVICE} ${TAG} to prod" \
+            --body "Copies the dev image tag \`${TAG}\` of \`${SERVICE}\` into \`services/${SERVICE}/overlays/prod\`. Merges on its own once the checks pass and the \`prod\` environment approval for **prod-gate** is given. Opened by the promote workflow, run by @${{ github.actor }}."
+          gh pr merge "$branch" --auto --squash --delete-branch
