@@ -1,0 +1,235 @@
+# Observability (T019, T020): metrics, dashboards and alerts (kube-prometheus-stack), logs (Loki),
+# traces (Tempo), and the OpenTelemetry Collector the services send OTLP to. Everything keeps its
+# data on volumes, so telemetry survives sessions (FR-024). Sized for the plan's memory budget.
+# The monitoring namespace and Grafana's admin Secret come from Terraform.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kube-prometheus-stack
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: default
+  source:
+    repoURL: https://prometheus-community.github.io/helm-charts
+    chart: kube-prometheus-stack
+    targetRevision: 92.17.0
+    helm:
+      valuesObject:
+        # Kind runs these control-plane components bound to 127.0.0.1 inside the node, so they
+        # cannot be scraped and would only raise false alerts.
+        kubeEtcd: { enabled: false }
+        kubeControllerManager: { enabled: false }
+        kubeScheduler: { enabled: false }
+        kubeProxy: { enabled: false }
+        prometheus:
+          prometheusSpec:
+            retention: 7d
+            retentionSize: 4GB
+            # The OpenTelemetry Collector pushes service metrics here over OTLP.
+            enableOTLPReceiver: true
+            # Pick up ServiceMonitors and rules from every namespace, not only this chart's.
+            serviceMonitorSelectorNilUsesHelmValues: false
+            podMonitorSelectorNilUsesHelmValues: false
+            ruleSelectorNilUsesHelmValues: false
+            resources:
+              requests: { cpu: 100m, memory: 400Mi }
+              limits: { memory: 1Gi }
+            storageSpec:
+              volumeClaimTemplate:
+                spec:
+                  accessModes: ["ReadWriteOnce"]
+                  resources: { requests: { storage: 8Gi } }
+        alertmanager:
+          alertmanagerSpec:
+            resources:
+              requests: { cpu: 10m, memory: 32Mi }
+              limits: { memory: 96Mi }
+            storage:
+              volumeClaimTemplate:
+                spec:
+                  accessModes: ["ReadWriteOnce"]
+                  resources: { requests: { storage: 1Gi } }
+        prometheusOperator:
+          resources:
+            requests: { cpu: 20m, memory: 64Mi }
+            limits: { memory: 192Mi }
+        kube-state-metrics:
+          resources:
+            requests: { cpu: 10m, memory: 48Mi }
+            limits: { memory: 128Mi }
+        prometheus-node-exporter:
+          resources:
+            requests: { cpu: 10m, memory: 24Mi }
+            limits: { memory: 64Mi }
+        grafana:
+          # Never the chart's well-known default password: Terraform generates it.
+          admin:
+            existingSecret: grafana-admin
+            userKey: admin-user
+            passwordKey: admin-password
+          persistence: { enabled: true, size: 2Gi }
+          resources:
+            requests: { cpu: 20m, memory: 128Mi }
+            limits: { memory: 320Mi }
+          ingress:
+            enabled: true
+            ingressClassName: traefik
+            hosts: ["grafana.sortedvtg.lan"]
+            annotations:
+              traefik.ingress.kubernetes.io/router.entrypoints: websecure
+              traefik.ingress.kubernetes.io/router.tls: "true"
+          additionalDataSources:
+            - name: Loki
+              type: loki
+              uid: loki
+              url: http://loki.monitoring:3100
+            - name: Tempo
+              type: tempo
+              uid: tempo
+              url: http://tempo.monitoring:3200
+              jsonData:
+                tracesToLogsV2: { datasourceUid: loki }
+                serviceMap: { datasourceUid: prometheus }
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions: ["ServerSideApply=true"]
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: loki
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  project: default
+  source:
+    repoURL: https://grafana.github.io/helm-charts
+    chart: loki
+    targetRevision: 7.5.0
+    helm:
+      valuesObject:
+        deploymentMode: SingleBinary
+        fullnameOverride: loki
+        loki:
+          auth_enabled: false
+          commonConfig: { replication_factor: 1 }
+          storage: { type: filesystem }
+          schemaConfig:
+            configs:
+              - from: "2026-01-01"
+                store: tsdb
+                object_store: filesystem
+                schema: v13
+                index: { prefix: index_, period: 24h }
+          limits_config:
+            # OTLP logs carry their resource attributes as structured metadata.
+            allow_structured_metadata: true
+            retention_period: 168h
+          compactor:
+            retention_enabled: true
+            delete_request_store: filesystem
+        singleBinary:
+          replicas: 1
+          persistence: { enabled: true, size: 5Gi }
+          resources:
+            requests: { cpu: 50m, memory: 192Mi }
+            limits: { memory: 512Mi }
+        # Single binary only: no scalable targets, no caches, no canary, gateway or bundled MinIO.
+        read: { replicas: 0 }
+        write: { replicas: 0 }
+        backend: { replicas: 0 }
+        chunksCache: { enabled: false }
+        resultsCache: { enabled: false }
+        lokiCanary: { enabled: false }
+        gateway: { enabled: false }
+        test: { enabled: false }
+        minio: { enabled: false }
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions: ["ServerSideApply=true"]
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: tempo
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  project: default
+  source:
+    repoURL: https://grafana.github.io/helm-charts
+    chart: tempo
+    targetRevision: 1.24.4
+    helm:
+      valuesObject:
+        fullnameOverride: tempo
+        tempo:
+          retention: 72h
+          resources:
+            requests: { cpu: 50m, memory: 192Mi }
+            limits: { memory: 512Mi }
+        persistence: { enabled: true, size: 5Gi }
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: otel-collector
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+spec:
+  project: default
+  source:
+    repoURL: https://open-telemetry.github.io/opentelemetry-helm-charts
+    chart: opentelemetry-collector
+    targetRevision: 0.178.1
+    helm:
+      valuesObject:
+        mode: deployment
+        fullnameOverride: otel-collector
+        image: { repository: otel/opentelemetry-collector-contrib }
+        resources:
+          requests: { cpu: 50m, memory: 128Mi }
+          limits: { memory: 256Mi }
+        config:
+          receivers:
+            otlp:
+              protocols:
+                grpc: { endpoint: "0.0.0.0:4317" }
+                http: { endpoint: "0.0.0.0:4318" }
+          processors:
+            memory_limiter: { check_interval: 1s, limit_percentage: 80, spike_limit_percentage: 20 }
+            batch: {}
+          exporters:
+            otlp/tempo:
+              endpoint: tempo.monitoring:4317
+              tls: { insecure: true }
+            otlphttp/loki:
+              endpoint: http://loki.monitoring:3100/otlp
+            otlphttp/prometheus:
+              metrics_endpoint: http://kube-prometheus-stack-prometheus.monitoring:9090/api/v1/otlp/v1/metrics
+          service:
+            pipelines:
+              traces: { receivers: [otlp], processors: [memory_limiter, batch], exporters: [otlp/tempo] }
+              logs: { receivers: [otlp], processors: [memory_limiter, batch], exporters: [otlphttp/loki] }
+              metrics: { receivers: [otlp], processors: [memory_limiter, batch], exporters: [otlphttp/prometheus] }
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }

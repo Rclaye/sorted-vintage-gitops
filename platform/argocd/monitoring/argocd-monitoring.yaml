@@ -1,0 +1,42 @@
+# Drift made visible (T111, SC-006). Argo CD self-heals drift; these rules make it show up and stay
+# on record: Prometheus keeps argocd_app_info for 7 days, and Alertmanager fires when an
+# Application stays OutOfSync or unhealthy. Each self-heal itself is listed in the Application's
+# sync history in Argo CD; its metrics cannot tell a self-heal from a sync of a new commit.
+# The metrics Services are enabled in Terraform.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: argocd-application-controller
+  namespace: argocd
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: argocd-metrics
+      app.kubernetes.io/component: application-controller
+  endpoints:
+    - port: http-metrics
+      interval: 30s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: argocd-drift
+  namespace: argocd
+spec:
+  groups:
+    - name: argocd-drift
+      rules:
+        - alert: ArgoCDAppOutOfSync
+          expr: argocd_app_info{sync_status="OutOfSync"} == 1
+          for: 10m
+          labels: { severity: warning }
+          annotations:
+            summary: "{{ $labels.name }} has differed from Git for 10 minutes"
+            description: "The cluster no longer matches sorted-vintage-gitops for {{ $labels.name }} and self-heal has not converged. Check its diff in Argo CD."
+        - alert: ArgoCDAppUnhealthy
+          expr: argocd_app_info{health_status!~"Healthy|Progressing"} == 1
+          for: 10m
+          labels: { severity: warning }
+          annotations:
+            summary: "{{ $labels.name }} is {{ $labels.health_status }}"
+            description: "Argo CD reports {{ $labels.name }} as {{ $labels.health_status }} for 10 minutes."
