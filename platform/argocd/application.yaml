@@ -19,3 +19,23 @@ spec:
     automated:
       prune: true
       selfHeal: true
+---
+# Argo CD's metrics scrape and drift alerts (T111), after the Prometheus Operator's CRDs exist.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: argocd-monitoring
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Rclaye/sorted-vintage-gitops.git
+    targetRevision: main
+    path: platform/argocd/monitoring
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
