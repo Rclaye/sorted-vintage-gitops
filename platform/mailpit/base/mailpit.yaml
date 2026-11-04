@@ -1,5 +1,12 @@
 # Mailpit catches every email the environment sends (T024): SMTP on 1025, web UI on 8025 under
 # mail.sortedvtg.lan/<env>/. Nothing leaves the lab. Messages are kept in memory only.
+# Mailpit never calls the Kubernetes API: own ServiceAccount, no token mounted (T112).
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: mailpit
+automountServiceAccountToken: false
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -13,6 +20,8 @@ spec:
     metadata:
       labels: { app.kubernetes.io/name: mailpit }
     spec:
+      serviceAccountName: mailpit
+      automountServiceAccountToken: false
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
