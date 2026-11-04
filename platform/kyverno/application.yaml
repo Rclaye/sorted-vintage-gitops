@@ -38,6 +38,14 @@ spec:
           enabled: false
         reportsController:
           enabled: false
+        # The policies.kyverno.io CRDs come from the kyverno-api subchart with empty labels and
+        # annotations ({}), which the API server stores as absent, so Argo CD showed this app
+        # OutOfSync forever. Giving both real values removes the diff at its source.
+        kyverno-api:
+          labels:
+            app.kubernetes.io/part-of: kyverno
+          annotations:
+            argocd.argoproj.io/sync-options: ServerSideApply=true
   destination:
     server: https://kubernetes.default.svc
     namespace: kyverno
