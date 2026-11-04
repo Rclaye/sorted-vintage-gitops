@@ -1,0 +1,38 @@
+# Mailpit per environment (T024).
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: mailpit-dev
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Rclaye/sorted-vintage-gitops.git
+    targetRevision: main
+    path: platform/mailpit/overlays/dev
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: sv-dev
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: mailpit-prod
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Rclaye/sorted-vintage-gitops.git
+    targetRevision: main
+    path: platform/mailpit/overlays/prod
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: sv-prod
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }

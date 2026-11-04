@@ -1,0 +1,7 @@
+# The official Messaging Topology Operator (T023); its webhook certificate comes from cert-manager.
+# Its own Application, because both operators' release files declare the rabbitmq-system
+# namespace and kustomize cannot merge two copies of one resource.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - https://github.com/rabbitmq/messaging-topology-operator/releases/download/v1.20.5/messaging-topology-operator-with-certmanager.yaml
