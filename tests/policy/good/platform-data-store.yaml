@@ -1,0 +1,24 @@
+# Passes: a platform data store in sv-dev with an upstream image, allowed because it carries the
+# data-store label AND uses the upstream image bound to that label in restrict-image-registry.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: good-mailpit
+  namespace: sv-dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app.kubernetes.io/name: good-mailpit }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: good-mailpit, app.kubernetes.io/part-of: mailpit }
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+      containers:
+        - name: mailpit
+          image: axllent/mailpit:v1.32.0
+          resources:
+            requests: { cpu: 10m, memory: 32Mi }
+            limits: { cpu: 500m, memory: 128Mi }

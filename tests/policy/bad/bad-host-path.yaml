@@ -1,0 +1,32 @@
+# Fails restrict-host-path-pods: the pod mounts a hostPath volume.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bad-host-path
+  namespace: sv-dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app.kubernetes.io/name: bad-host-path }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: bad-host-path }
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: app
+          image: ghcr.io/rclaye/sv-bff:0000000
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: ["ALL"] }
+          resources:
+            requests: { cpu: 10m, memory: 64Mi }
+            limits: { cpu: 500m, memory: 128Mi }
+          volumeMounts:
+            - { name: node, mountPath: /node, readOnly: true }
+      volumes:
+        - name: node
+          hostPath: { path: /var/lab-data }

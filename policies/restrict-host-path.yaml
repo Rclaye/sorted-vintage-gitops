@@ -1,0 +1,84 @@
+# hostPath reaches the node's (and, through Kind's extraMount, the mini's) filesystem, and the
+# Docker Desktop mount behind /var/lab-data does not enforce file ownership (infra T108), so only
+# Garage's data may live there (T026, FR-027). Two policies: one for PersistentVolumes, one for
+# pod volumes.
+#
+# PersistentVolumes may use hostPath only when they are:
+#   garage-data-dev / garage-data-prod  at /var/lab-data/garage-dev / -prod (platform/garage)
+#   created by Kind's local-path provisioner, under /var/local-path-provisioner/ (every other
+#                                       claim, e.g. Postgres, RabbitMQ, Prometheus, is provisioned
+#                                       this way on Kind)
+apiVersion: policies.kyverno.io/v1
+kind: ValidatingPolicy
+metadata:
+  name: restrict-host-path-volumes
+  annotations:
+    policies.kyverno.io/title: Only Garage's PersistentVolumes use hostPath
+spec:
+  validationActions: [Deny]
+  matchConstraints:
+    resourceRules:
+      - apiGroups: [""]
+        apiVersions: [v1]
+        # CREATE only: a PV's volume source cannot change after creation, and the PV controller
+        # updates every PV (claimRef, phase) as a user this policy should not have to know.
+        operations: [CREATE]
+        resources: [persistentvolumes]
+  variables:
+    - name: garagePaths
+      expression: >-
+        {'garage-data-dev': '/var/lab-data/garage-dev',
+         'garage-data-prod': '/var/lab-data/garage-prod'}
+    - name: provisioner
+      expression: >-
+        request.?userInfo.?username.orValue('') ==
+        'system:serviceaccount:local-path-storage:local-path-provisioner-service-account'
+  validations:
+    - expression: >-
+        !has(object.spec.hostPath) ||
+        variables.garagePaths[?object.metadata.name].orValue('') == object.spec.hostPath.path ||
+        (variables.provisioner && object.spec.hostPath.path.startsWith('/var/local-path-provisioner/'))
+      message: >-
+        hostPath PersistentVolumes are reserved for Garage (garage-data-<env> at
+        /var/lab-data/garage-<env>) and Kind's local-path provisioner. Use a
+        PersistentVolumeClaim on the default StorageClass instead.
+---
+# Pods may not mount hostPath volumes.
+#
+# Exclusions:
+#   namespace kube-system           Kind control plane, kindnet and kube-proxy need the node's files
+#   namespace local-path-storage    the provisioner's helper pods create the claim directories
+#   namespace kyverno               Kyverno itself (uses none; its webhooks skip it anyway)
+#   node-exporter in monitoring     reads /proc, /sys and / of the node to report its metrics;
+#                                   matched by namespace AND its chart label
+#                                   app.kubernetes.io/name: prometheus-node-exporter
+apiVersion: policies.kyverno.io/v1
+kind: ValidatingPolicy
+metadata:
+  name: restrict-host-path-pods
+  annotations:
+    policies.kyverno.io/title: Pods do not mount hostPath
+spec:
+  validationActions: [Deny]
+  matchConstraints:
+    namespaceSelector:
+      matchExpressions:
+        - key: kubernetes.io/metadata.name
+          operator: NotIn
+          values: [kube-system, local-path-storage, kyverno]
+    resourceRules:
+      - apiGroups: [""]
+        apiVersions: [v1]
+        operations: [CREATE, UPDATE]
+        resources: [pods]
+  matchConditions:
+    - name: not-node-exporter
+      expression: >-
+        !(request.namespace == 'monitoring' &&
+          object.metadata.?labels[?'app.kubernetes.io/name'].orValue('') == 'prometheus-node-exporter')
+  validations:
+    - expression: >-
+        !object.spec.?volumes.orValue([]).exists(v, has(v.hostPath))
+      message: >-
+        Pods may not mount hostPath volumes; use a PersistentVolumeClaim. Only node-exporter
+        and Kind's own components are exempt.

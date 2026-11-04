@@ -1,0 +1,27 @@
+# Passes every policy: project image, non-root, CPU and memory requests and limits, no hostPath.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: good-app
+  namespace: sv-dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app.kubernetes.io/name: good-app }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: good-app }
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: app
+          image: ghcr.io/rclaye/sv-bff:0000000
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: ["ALL"] }
+          resources:
+            requests: { cpu: 10m, memory: 64Mi }
+            limits: { cpu: 500m, memory: 128Mi }

@@ -29,3 +29,27 @@ jobs:
       - uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  policy:
+    name: policy
+    runs-on: ubuntu-24.04-arm
+    env:
+      KYVERNO_VERSION: v1.19.2
+      KYVERNO_SHA256: 250f2a02f143d5c6425e686b13c130d3a3ba7372dba6a7210d599d1b0dd12e92
+      KUSTOMIZE_VERSION: v5.8.3
+      KUSTOMIZE_SHA256: 9867b76482cfc6d25b546abc1d2b5a32bd137505aba640649b4b378f64f6d68f
+      KUBECONFORM_VERSION: v0.8.0
+      KUBECONFORM_SHA256: 1f53fc8e81258197a35e8603054162a5af1de8c5af13746c71ab680d9534ed87
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install kyverno, kustomize and kubeconform (pinned, checksum-verified)
+        run: |
+          set -euo pipefail
+          bin="$RUNNER_TEMP/bin"; mkdir -p "$bin"; cd "$RUNNER_TEMP"
+          fetch() { curl -fsSL -o "$2" "$1"; echo "$3  $2" | sha256sum -c -; tar -xzf "$2" -C "$bin" "$4"; }
+          fetch "https://github.com/kyverno/kyverno/releases/download/${KYVERNO_VERSION}/kyverno-cli_${KYVERNO_VERSION}_linux_arm64.tar.gz" kyverno.tgz "$KYVERNO_SHA256" kyverno
+          fetch "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2F${KUSTOMIZE_VERSION}/kustomize_${KUSTOMIZE_VERSION}_linux_arm64.tar.gz" kustomize.tgz "$KUSTOMIZE_SHA256" kustomize
+          fetch "https://github.com/yannh/kubeconform/releases/download/${KUBECONFORM_VERSION}/kubeconform-linux-arm64.tar.gz" kubeconform.tgz "$KUBECONFORM_SHA256" kubeconform
+          echo "$bin" >> "$GITHUB_PATH"
+      - name: Policy check
+        run: scripts/policy-check.sh

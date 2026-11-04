@@ -1,0 +1,58 @@
+# Every container runs as a non-root user (T026, Constitution VI, FR-027).
+# A container passes when runAsNonRoot is true on the container or, if the container does not set
+# it, on the pod; and neither sets runAsUser to 0. Kyverno generates the same check for
+# Deployments, StatefulSets, DaemonSets, ReplicaSets, Jobs and CronJobs, so a bad workload is
+# refused before it creates any pod.
+#
+# Excluded namespaces (platform charts and Kind itself; never switched to audit instead):
+#   kube-system         Kind control plane, CoreDNS, kindnet, kube-proxy (root by design)
+#   local-path-storage  Kind's volume provisioner and its helper pods (root, hostPath)
+#   kyverno             Kyverno itself; its webhooks never see this namespace anyway
+#   argocd, cert-manager, cnpg-system, rabbitmq-system, traefik, monitoring, keycloak
+#                       upstream charts and operators; Grafana's chown init container runs as root
+apiVersion: policies.kyverno.io/v1
+kind: ValidatingPolicy
+metadata:
+  name: require-non-root
+  annotations:
+    policies.kyverno.io/title: Containers run as non-root
+spec:
+  validationActions: [Deny]
+  matchConstraints:
+    namespaceSelector:
+      matchExpressions:
+        - key: kubernetes.io/metadata.name
+          operator: NotIn
+          values:
+            - kube-system
+            - local-path-storage
+            - kyverno
+            - argocd
+            - cert-manager
+            - cnpg-system
+            - rabbitmq-system
+            - traefik
+            - monitoring
+            - keycloak
+    resourceRules:
+      - apiGroups: [""]
+        apiVersions: [v1]
+        operations: [CREATE, UPDATE]
+        resources: [pods]
+  variables:
+    - name: containers
+      expression: >-
+        object.spec.containers + object.spec.?initContainers.orValue([]) +
+        object.spec.?ephemeralContainers.orValue([])
+    - name: podNonRoot
+      expression: object.spec.?securityContext.?runAsNonRoot.orValue(false)
+    - name: podUser
+      expression: object.spec.?securityContext.?runAsUser.orValue(-1)
+  validations:
+    - expression: >-
+        variables.containers.all(c,
+          c.?securityContext.?runAsNonRoot.orValue(variables.podNonRoot) == true &&
+          c.?securityContext.?runAsUser.orValue(variables.podUser) != 0)
+      message: >-
+        Every container must run as non-root: set securityContext.runAsNonRoot: true on the pod
+        or the container, and do not set runAsUser: 0.

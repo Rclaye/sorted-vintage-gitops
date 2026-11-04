@@ -1,0 +1,26 @@
+# Fails require-resources: the container sets requests but no limits.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bad-no-limits
+  namespace: sv-dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app.kubernetes.io/name: bad-no-limits }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: bad-no-limits }
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: app
+          image: ghcr.io/rclaye/sv-bff:0000000
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: ["ALL"] }
+          resources:
+            requests: { cpu: 10m, memory: 64Mi }

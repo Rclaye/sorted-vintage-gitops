@@ -1,0 +1,43 @@
+# `kyverno test tests/policy` (checks workflow, job policy): every file in bad/ fails exactly the
+# rule it is named for, and every file in good/ passes every policy that matches it.
+apiVersion: cli.kyverno.io/v1alpha1
+kind: Test
+metadata:
+  name: policy
+policies:
+  - ../../policies/require-non-root.yaml
+  - ../../policies/require-resources.yaml
+  - ../../policies/restrict-image-registry.yaml
+  - ../../policies/restrict-host-path.yaml
+resources:
+  - good/app-deployment.yaml
+  - good/platform-data-store.yaml
+  - good/garage-pv.yaml
+  - bad/bad-root.yaml
+  - bad/bad-no-limits.yaml
+  - bad/bad-image.yaml
+  - bad/bad-spoofed-label.yaml
+  - bad/bad-host-path.yaml
+  - bad/bad-host-path-pv.yaml
+variables: values.yaml
+results:
+  - { isValidatingPolicy: true, policy: require-non-root, kind: Deployment, result: pass,
+      resources: [good-app, good-mailpit, bad-no-limits, bad-image, bad-spoofed-label, bad-host-path] }
+  - { isValidatingPolicy: true, policy: require-non-root, kind: Deployment, result: fail,
+      resources: [bad-root] }
+  - { isValidatingPolicy: true, policy: require-resources, kind: Deployment, result: pass,
+      resources: [good-app, good-mailpit, bad-root, bad-image, bad-spoofed-label, bad-host-path] }
+  - { isValidatingPolicy: true, policy: require-resources, kind: Deployment, result: fail,
+      resources: [bad-no-limits] }
+  - { isValidatingPolicy: true, policy: restrict-image-registry, kind: Deployment, result: pass,
+      resources: [good-app, good-mailpit, bad-root, bad-no-limits, bad-host-path] }
+  - { isValidatingPolicy: true, policy: restrict-image-registry, kind: Deployment, result: fail,
+      resources: [bad-image, bad-spoofed-label] }
+  - { isValidatingPolicy: true, policy: restrict-host-path-pods, kind: Deployment, result: pass,
+      resources: [good-app, good-mailpit, bad-root, bad-no-limits, bad-image, bad-spoofed-label] }
+  - { isValidatingPolicy: true, policy: restrict-host-path-pods, kind: Deployment, result: fail,
+      resources: [bad-host-path] }
+  - { isValidatingPolicy: true, policy: restrict-host-path-volumes, kind: PersistentVolume, result: pass,
+      resources: [garage-data-dev] }
+  - { isValidatingPolicy: true, policy: restrict-host-path-volumes, kind: PersistentVolume, result: fail,
+      resources: [bad-host-path-pv] }

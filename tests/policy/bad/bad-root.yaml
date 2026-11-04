@@ -1,0 +1,26 @@
+# Fails require-non-root: the pod does not set runAsNonRoot and the container runs as uid 0.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bad-root
+  namespace: sv-dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app.kubernetes.io/name: bad-root }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: bad-root }
+    spec:
+      securityContext:
+        runAsUser: 0
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: app
+          image: ghcr.io/rclaye/sv-bff:0000000
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: { drop: ["ALL"] }
+          resources:
+            requests: { cpu: 10m, memory: 64Mi }
+            limits: { cpu: 500m, memory: 128Mi }

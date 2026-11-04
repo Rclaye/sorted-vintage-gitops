@@ -1,0 +1,54 @@
+# Every container sets CPU and memory requests and limits (T026, FR-027), so one workload cannot
+# starve the single lab node. Init containers count too; ephemeral (debug) containers cannot set
+# resources and are not checked.
+#
+# Excluded namespaces (platform charts and Kind itself; never switched to audit instead):
+#   kube-system         Kind control plane, CoreDNS, kindnet, kube-proxy
+#   local-path-storage  Kind's volume provisioner and its helper pods
+#   kyverno             Kyverno itself
+#   argocd, cert-manager, cnpg-system, rabbitmq-system, traefik, monitoring, keycloak
+#                       upstream charts and operators; they set memory limits where the chart
+#                       allows, but not CPU limits
+# The data stores inside sv-dev and sv-prod (Postgres, RabbitMQ, Garage, Mailpit) are not
+# excluded: their manifests set CPU and memory limits.
+apiVersion: policies.kyverno.io/v1
+kind: ValidatingPolicy
+metadata:
+  name: require-resources
+  annotations:
+    policies.kyverno.io/title: Containers set CPU and memory requests and limits
+spec:
+  validationActions: [Deny]
+  matchConstraints:
+    namespaceSelector:
+      matchExpressions:
+        - key: kubernetes.io/metadata.name
+          operator: NotIn
+          values:
+            - kube-system
+            - local-path-storage
+            - kyverno
+            - argocd
+            - cert-manager
+            - cnpg-system
+            - rabbitmq-system
+            - traefik
+            - monitoring
+            - keycloak
+    resourceRules:
+      - apiGroups: [""]
+        apiVersions: [v1]
+        operations: [CREATE, UPDATE]
+        resources: [pods]
+  variables:
+    - name: containers
+      expression: object.spec.containers + object.spec.?initContainers.orValue([])
+  validations:
+    - expression: >-
+        variables.containers.all(c,
+          has(c.resources) && has(c.resources.requests) && has(c.resources.limits) &&
+          'cpu' in c.resources.requests && 'memory' in c.resources.requests &&
+          'cpu' in c.resources.limits && 'memory' in c.resources.limits)
+      message: >-
+        Every container and init container must set resources.requests and resources.limits
+        for both cpu and memory.
