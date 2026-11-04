@@ -1,0 +1,5 @@
+# The official RabbitMQ Cluster Operator from its release assets, images from GHCR (T023).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - https://github.com/rabbitmq/cluster-operator/releases/download/v2.23.2/cluster-operator-ghcr-io.yml

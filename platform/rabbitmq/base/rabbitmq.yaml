@@ -1,0 +1,14 @@
+# One single-node RabbitMQ per environment (T023). Queues, users and permissions arrive with the
+# services that use them, as Messaging Topology Operator resources.
+apiVersion: rabbitmq.com/v1beta1
+kind: RabbitmqCluster
+metadata:
+  name: rabbitmq
+spec:
+  replicas: 1
+  # The operator's default is 2 GiB of memory per node; the lab budget is about 0.25 GiB (plan).
+  resources:
+    requests: { cpu: 100m, memory: 384Mi }
+    limits: { memory: 512Mi }
+  persistence:
+    storage: 2Gi
