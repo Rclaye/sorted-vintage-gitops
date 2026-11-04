@@ -1,0 +1,67 @@
+# Prod approval gate (T080, ADR-0002). prod-gate is a required check on main:
+#   - no file under services/*/overlays/prod/ changed: it passes at once;
+#   - otherwise it runs in the GitHub Environment "prod", which waits for the owner's approval.
+# Pull request approvals stay at zero, because GitHub does not let an author approve their own
+# pull request; the environment approval is the human gate.
+# Bot pull requests merge on their own once checks pass (auto-merge), so the changes job also
+# fails any bot pull request that touches more than overlay kustomization.yaml files, and
+# prod-gate fails with it.
+name: prod-gate
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  changes:
+    name: changes
+    runs-on: ubuntu-24.04-arm
+    outputs:
+      prod: ${{ steps.diff.outputs.prod }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: diff
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+          AUTHOR_TYPE: ${{ github.event.pull_request.user.type }}
+        run: |
+          set -euo pipefail
+          git diff --name-only "$BASE...$HEAD" > changed.txt
+          cat changed.txt
+          if grep -Eq '^services/[^/]+/overlays/prod/' changed.txt; then
+            echo "prod=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "prod=false" >> "$GITHUB_OUTPUT"
+          fi
+          if [ "$AUTHOR_TYPE" = "Bot" ]; then
+            if grep -Evq '^services/[a-z0-9-]+/overlays/(dev|prod)/kustomization\.yaml$' changed.txt; then
+              echo "::error::bot pull requests may only change services/<service>/overlays/<env>/kustomization.yaml"
+              exit 1
+            fi
+          fi
+
+  prod-gate:
+    name: prod-gate
+    needs: changes
+    # always(): a job skipped because "changes" failed would count as a passing required check.
+    if: always()
+    runs-on: ubuntu-24.04-arm
+    environment: ${{ needs.changes.outputs.prod == 'true' && 'prod' || '' }}
+    steps:
+      - env:
+          CHANGES: ${{ needs.changes.result }}
+          PROD: ${{ needs.changes.outputs.prod }}
+        run: |
+          if [ "$CHANGES" != "success" ]; then
+            echo "::error::the changes job did not succeed ($CHANGES)"; exit 1
+          fi
+          if [ "$PROD" = "true" ]; then
+            echo "Prod overlay changed: approved in environment prod."
+          else
+            echo "No prod overlay changed."
+          fi
