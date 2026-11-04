@@ -1,0 +1,39 @@
+# Garage per environment (T022, infra research R19). Its namespaces and Secrets come from
+# Terraform; the PostSync Job is the recorded Principle VIII exception in the plan.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: garage-dev
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Rclaye/sorted-vintage-gitops.git
+    targetRevision: main
+    path: platform/garage/overlays/dev
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: sv-dev
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: garage-prod
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Rclaye/sorted-vintage-gitops.git
+    targetRevision: main
+    path: platform/garage/overlays/prod
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: sv-prod
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }

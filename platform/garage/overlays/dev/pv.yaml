@@ -1,0 +1,15 @@
+# Garage's data on the Kind extraMount (/var/lab-data is ~/sv-data on the mini), so photos and
+# backups survive a cluster rebuild. Retain: deleting the claim never deletes the data.
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: garage-data-dev
+spec:
+  capacity: { storage: 20Gi }
+  accessModes: ["ReadWriteOnce"]
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: ""
+  claimRef: { namespace: sv-dev, name: garage-data }
+  hostPath:
+    path: /var/lab-data/garage-dev
+    type: DirectoryOrCreate
