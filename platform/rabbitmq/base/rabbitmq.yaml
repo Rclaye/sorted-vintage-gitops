@@ -9,6 +9,6 @@ spec:
   # The operator's default is 2 GiB of memory per node; the lab budget is about 0.25 GiB (plan).
   resources:
     requests: { cpu: 100m, memory: 384Mi }
-    limits: { memory: 512Mi }
+    limits: { cpu: "1", memory: 512Mi }
   persistence:
     storage: 2Gi
