@@ -1,0 +1,65 @@
+# Kyverno (T026, Constitution III, FR-027): the same policies in policies/ run at admission here
+# and in the checks workflow on every pull request. Policies are policies.kyverno.io/v1
+# ValidatingPolicy, not ClusterPolicy: the legacy kyverno.io types are deprecated in 1.19 and
+# removed in 1.20 (infra research R20). Waves: Kyverno 0, policies 1, so every platform data store
+# from wave 1 on is admitted under the policies, as it would be on a rebuild.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kyverno
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+spec:
+  project: default
+  source:
+    repoURL: https://kyverno.github.io/kyverno
+    chart: kyverno
+    targetRevision: 3.9.2
+    helm:
+      valuesObject:
+        # Lab budget is about 0.4 GiB (plan): admission and background controllers only.
+        # Cleanup policies are not used, and violations are blocked at admission and in CI,
+        # so the reports controller and its background scans are left out.
+        features:
+          admissionReports: { enabled: false }
+          backgroundScan: { enabled: false }
+        admissionController:
+          replicas: 1
+          container:
+            resources:
+              requests: { cpu: 50m, memory: 128Mi }
+              limits: { memory: 320Mi }
+        backgroundController:
+          resources:
+            requests: { cpu: 20m, memory: 64Mi }
+            limits: { memory: 128Mi }
+        cleanupController:
+          enabled: false
+        reportsController:
+          enabled: false
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: kyverno
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions: ["CreateNamespace=true", "ServerSideApply=true"]
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kyverno-policies
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/Rclaye/sorted-vintage-gitops.git
+    targetRevision: main
+    path: policies
+  destination:
+    server: https://kubernetes.default.svc
+  syncPolicy:
+    automated: { prune: true, selfHeal: true }
+    syncOptions: ["ServerSideApply=true"]

@@ -1,0 +1,10 @@
+# Namespace labels for the Kyverno CLI, which has no cluster to read them from.
+apiVersion: cli.kyverno.io/v1alpha1
+kind: Value
+metadata:
+  name: values
+namespaceSelector:
+  - name: sv-dev
+    labels: { kubernetes.io/metadata.name: sv-dev }
+  - name: sv-prod
+    labels: { kubernetes.io/metadata.name: sv-prod }

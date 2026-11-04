@@ -1,0 +1,11 @@
+# Fails restrict-host-path-volumes: a hostPath PersistentVolume that is not Garage's.
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: bad-host-path-pv
+spec:
+  capacity: { storage: 1Gi }
+  accessModes: ["ReadWriteOnce"]
+  storageClassName: ""
+  hostPath:
+    path: /var/lab-data/garage-dev
