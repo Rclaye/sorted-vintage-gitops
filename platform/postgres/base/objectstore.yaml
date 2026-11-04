@@ -5,6 +5,11 @@ kind: ObjectStore
 metadata:
   name: backups
 spec:
+  # The barman-cloud sidecar in each Postgres pod (T026 requires CPU and memory limits).
+  instanceSidecarConfiguration:
+    resources:
+      requests: { cpu: 20m, memory: 64Mi }
+      limits: { cpu: 500m, memory: 256Mi }
   retentionPolicy: "14d"
   configuration:
     destinationPath: s3://backups/postgres
