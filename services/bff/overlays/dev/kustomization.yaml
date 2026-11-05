@@ -7,7 +7,7 @@ resources:
   - ../../base
 images:
   - name: ghcr.io/rclaye/sv-bff
-    newTag: c06b578e5563ac67a83a6e7f1cc9ffb9f14c5a5a
+    newTag: 003de72d0a5a373686612b9ac5b66aa2548eabcb
 replicas:
   - { name: bff, count: 1 }
 patches:
