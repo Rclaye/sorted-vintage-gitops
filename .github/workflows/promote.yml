@@ -48,7 +48,10 @@ jobs:
           if [ "$(scripts/set-image-tag.py get "$SERVICE" prod)" = "$tag" ]; then
             echo "::notice::prod already runs $tag"; echo "changed=false" >> "$GITHUB_OUTPUT"; exit 0
           fi
-          scripts/set-image-tag.py set "$SERVICE" prod "$tag" --first-replicas 2
+          # Replicas for the first promotion only: a "# first-prod-replicas: N" line in the prod
+          # overlay sets them per service (Listings budgets one per environment); otherwise 2.
+          first="$(sed -n 's/^# first-prod-replicas: \([0-9][0-9]*\)$/\1/p' "services/$SERVICE/overlays/prod/kustomization.yaml")"
+          scripts/set-image-tag.py set "$SERVICE" prod "$tag" --first-replicas "${first:-2}"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
           echo "changed=true" >> "$GITHUB_OUTPUT"
       - name: Open the promotion pull request

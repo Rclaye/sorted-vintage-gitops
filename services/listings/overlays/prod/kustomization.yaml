@@ -1,6 +1,7 @@
 # Prod: changes only through a pull request that waits for approval in the GitHub Environment
 # prod (prod-gate, ADR-0002). promote.yml copies the dev tag here; replicas start at 0 because no
-# image has been promoted yet, and the first promotion raises them (scripts/set-image-tag.py).
+# image has been promoted yet, and the first promotion raises them (scripts/set-image-tag.py) to:
+# first-prod-replicas: 1
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: sv-prod

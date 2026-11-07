@@ -1,6 +1,7 @@
 # Meets the T026 policies: non-root, CPU and memory requests and limits, image from ghcr.io/rclaye/.
-# Memory from the Sprint 2 JVM spike: G1 with -XX:MaxRAMPercentage=75 used 241 MiB after load; the
-# real service adds JPA, Flyway and security, so expect 350-400 MiB (re-measured in T119).
+# Memory: the first real run (2026-11-07) used 55 MiB heap and 139 MiB non-heap (Hibernate, Flyway,
+# the OpenTelemetry agent). At -XX:MaxRAMPercentage=75 the heap could grow to 384 MiB, which with the
+# non-heap would pass the 512 Mi limit and get the pod OOM-killed under load; 60 caps it at ~307 MiB.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -29,7 +30,7 @@ spec:
           env:
             - { name: SERVICE_NAME, value: listings }
             # Heap only; the Dockerfile's ENTRYPOINT adds the OpenTelemetry agent, not this variable.
-            - { name: JAVA_TOOL_OPTIONS, value: "-XX:MaxRAMPercentage=75" }
+            - { name: JAVA_TOOL_OPTIONS, value: "-XX:MaxRAMPercentage=60" }
             # Postgres: CloudNativePG cluster pg in the same namespace, database and owner listings.
             - { name: SPRING_DATASOURCE_URL, value: "jdbc:postgresql://pg-rw:5432/listings?sslmode=require" }
             - name: SPRING_DATASOURCE_USERNAME
