@@ -191,6 +191,32 @@
           }
         }
       ]
+    },
+    {
+      "clientId": "seed",
+      "name": "Seed job (sv-dev only)",
+      "description": "Service account for the seed job (T051): creates the demo sellers and the verify seller. May only view and manage users.",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "${SV_DEV_SEED_SECRET}",
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "implicitFlowEnabled": false
+    }
+  ],
+  "users": [
+    {
+      "username": "service-account-seed",
+      "enabled": true,
+      "serviceAccountClientId": "seed",
+      "clientRoles": {
+        "realm-management": [
+          "manage-users",
+          "view-users"
+        ]
+      }
     }
   ]
 }
