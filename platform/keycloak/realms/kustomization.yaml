@@ -1,8 +1,11 @@
-# Realm files for Keycloak's start-up import (T025). Client secrets are ${SV_<ENV>_<CLIENT>_SECRET}
+# Realm files for Keycloak's start-up import (T025) and for keycloak-config-cli, which applies them
+# to the live realms after every sync (T120). Client secrets are ${SV_<ENV>_<CLIENT>_SECRET}
 # placeholders, filled from the Terraform Secret keycloak-realm-clients at import time.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: keycloak
+resources:
+  - config-cli-job.yaml
 configMapGenerator:
   - name: keycloak-realms
     files: [sv-dev.json, sv-prod.json]

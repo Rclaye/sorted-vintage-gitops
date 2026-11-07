@@ -1,0 +1,63 @@
+# keycloak-config-cli (T120, Sprint 2 spike "keycloak-config-cli"): after every sync of the keycloak
+# Application, apply the realm files in the keycloak-realms ConfigMap to the live realms, so a client,
+# scope or user-profile change in Git reaches Keycloak without an admin-console edit. --import-realm
+# still creates a missing realm at start; this Job keeps existing realms in step with Git.
+# It leaves users alone, and its remote state only removes what it created itself.
+# The image is built for Keycloak 26.5 and passed against 26.8.1; check it when Keycloak is upgraded.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: keycloak-config-cli
+  labels: { app.kubernetes.io/name: keycloak-config-cli, app.kubernetes.io/part-of: keycloak }
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: 2
+  activeDeadlineSeconds: 480 # inside Argo CD's 600 s sync timeout, so a stuck run fails the sync
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: keycloak-config-cli, app.kubernetes.io/part-of: keycloak }
+    spec:
+      restartPolicy: Never
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: keycloak-config-cli
+          image: adorsys/keycloak-config-cli:6.5.1-26.5.5
+          env:
+            - { name: KEYCLOAK_URL, value: "http://keycloak-http.keycloak.svc.cluster.local" }
+            - name: KEYCLOAK_USER
+              valueFrom: { secretKeyRef: { name: keycloak-admin, key: username } }
+            - name: KEYCLOAK_PASSWORD
+              valueFrom: { secretKeyRef: { name: keycloak-admin, key: password } }
+            - { name: KEYCLOAK_AVAILABILITYCHECK_ENABLED, value: "true" }
+            - { name: KEYCLOAK_AVAILABILITYCHECK_TIMEOUT, value: "180s" }
+            - { name: IMPORT_FILES_LOCATIONS, value: "/config/*.json" }
+            # The realm files' ${SV_<ENV>_<CLIENT>_SECRET} placeholders, filled from the same
+            # Terraform Secret that Keycloak's start-up import reads.
+            - { name: IMPORT_VARSUBSTITUTION_ENABLED, value: "true" }
+            - { name: IMPORT_VARSUBSTITUTION_PREFIX, value: "${" }
+            - { name: IMPORT_VARSUBSTITUTION_SUFFIX, value: "}" }
+            - { name: JAVA_TOOL_OPTIONS, value: "-XX:MaxRAMPercentage=75" }
+          envFrom:
+            - secretRef: { name: keycloak-realm-clients }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: ["ALL"] }
+          resources:
+            requests: { cpu: 100m, memory: 256Mi }
+            limits: { cpu: "1", memory: 512Mi }
+          volumeMounts:
+            - { name: realms, mountPath: /config, readOnly: true }
+            - { name: tmp, mountPath: /tmp }
+      volumes:
+        - name: realms
+          configMap: { name: keycloak-realms }
+        - name: tmp
+          emptyDir: { sizeLimit: 64Mi }

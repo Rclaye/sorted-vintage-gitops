@@ -6,6 +6,7 @@ kind: Kustomization
 namespace: sv-prod
 resources:
   - ../../base
+  - ingress.yaml
 images:
   - name: ghcr.io/rclaye/sv-bff
     newTag: c06b578e5563ac67a83a6e7f1cc9ffb9f14c5a5a

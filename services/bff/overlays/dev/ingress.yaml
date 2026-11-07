@@ -1,0 +1,22 @@
+# The marketplace's address in dev (T117): Traefik on websecure, with the default mkcert
+# *.sortedvtg.lan certificate from Traefik's TLS store, so no tls block is needed here.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bff
+  labels: { app.kubernetes.io/name: bff }
+  annotations:
+    traefik.ingress.kubernetes.io/router.entrypoints: websecure
+    traefik.ingress.kubernetes.io/router.tls: "true"
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: dev.sortedvtg.lan
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: bff
+                port: { name: http }

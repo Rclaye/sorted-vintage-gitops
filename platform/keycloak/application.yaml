@@ -1,7 +1,8 @@
 # Keycloak (T025, research R13, R16): one instance with realms sv-dev and sv-prod, its own Postgres,
 # and the browser login at auth.sortedvtg.lan. The namespace and every Secret come from Terraform.
 # Realms are imported at start with --import-realm, which skips a realm that already exists, so a
-# restored database is never overwritten (the IGNORE_EXISTING behaviour R16 asks for).
+# restored database is never overwritten (the IGNORE_EXISTING behaviour R16 asks for). Later changes
+# to the realm files reach the live realms through the keycloak-config-cli PostSync Job (T120).
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
