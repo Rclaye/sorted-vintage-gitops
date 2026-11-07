@@ -1,0 +1,76 @@
+# Meets the T026 policies: non-root, CPU and memory requests and limits, image from ghcr.io/rclaye/.
+# Memory from the Sprint 2 JVM spike: G1 with -XX:MaxRAMPercentage=75 used 241 MiB after load; the
+# real service adds JPA, Flyway and security, so expect 350-400 MiB (re-measured in T119).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: listings
+  labels: { app.kubernetes.io/name: listings }
+spec:
+  replicas: 1
+  selector:
+    matchLabels: { app.kubernetes.io/name: listings }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: listings }
+    spec:
+      serviceAccountName: listings
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: listings
+          image: ghcr.io/rclaye/sv-listings:unset # the tag is set per overlay by the build workflow
+          ports:
+            - { name: http, containerPort: 8080 }
+          env:
+            - { name: SERVICE_NAME, value: listings }
+            # Heap only; the Dockerfile's ENTRYPOINT adds the OpenTelemetry agent, not this variable.
+            - { name: JAVA_TOOL_OPTIONS, value: "-XX:MaxRAMPercentage=75" }
+            # Postgres: CloudNativePG cluster pg in the same namespace, database and owner listings.
+            - { name: SPRING_DATASOURCE_URL, value: "jdbc:postgresql://pg-rw:5432/listings?sslmode=require" }
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom: { secretKeyRef: { name: pg-listings-app, key: username } }
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom: { secretKeyRef: { name: pg-listings-app, key: password } }
+            # Keycloak JWTs: keys from the in-cluster JWKS URL, issuer checked against the browser
+            # address (both set per overlay); never discovery, which would fetch the external URL.
+            - { name: SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_AUDIENCES, value: listings }
+            # Photos: Garage in the same namespace, bucket photos, path-style addressing.
+            - { name: S3_ENDPOINT, value: "http://garage:3900" }
+            - { name: S3_REGION, value: us-east-1 }
+            - { name: S3_BUCKET, value: photos }
+            - name: S3_ACCESS_KEY_ID
+              valueFrom: { secretKeyRef: { name: s3-photos, key: ACCESS_KEY_ID } }
+            - name: S3_SECRET_ACCESS_KEY
+              valueFrom: { secretKeyRef: { name: s3-photos, key: ACCESS_SECRET_KEY } }
+            # Traces only through the agent; metrics are scraped from /metrics and logs read from stdout.
+            - { name: OTEL_SERVICE_NAME, value: listings }
+            - { name: OTEL_EXPORTER_OTLP_ENDPOINT, value: "http://otel-collector.monitoring:4318" }
+            - { name: OTEL_METRICS_EXPORTER, value: none }
+            - { name: OTEL_LOGS_EXPORTER, value: none }
+          startupProbe:
+            tcpSocket: { port: http } # JVM start plus Flyway; up to 3 minutes while the lab starts
+            periodSeconds: 5
+            failureThreshold: 36
+          readinessProbe:
+            httpGet: { path: /healthz, port: http }
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket: { port: http } # not /healthz: a database outage must not restart the pod
+            periodSeconds: 20
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: ["ALL"] }
+          resources:
+            requests: { cpu: 100m, memory: 320Mi }
+            limits: { cpu: "1", memory: 512Mi }
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+      volumes:
+        - name: tmp
+          emptyDir: { sizeLimit: 128Mi }
