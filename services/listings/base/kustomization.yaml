@@ -1,0 +1,10 @@
+# Listings (T035, T050): Spring Boot 4 on Java 21 (research R21). Unlike the FastAPI services, the
+# app repo has no Copier template for Java, so these manifests are written here; the app repo only
+# builds the image. The environment variables below are the contract the service reads.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - serviceaccount.yaml
+  - deployment.yaml
+  - service.yaml
+  - servicemonitor.yaml

@@ -1,0 +1,25 @@
+# Prod: changes only through a pull request that waits for approval in the GitHub Environment
+# prod (prod-gate, ADR-0002). promote.yml copies the dev tag here; replicas start at 0 because no
+# image has been promoted yet, and the first promotion raises them (scripts/set-image-tag.py).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: sv-prod
+resources:
+  - ../../base
+images:
+  - name: ghcr.io/rclaye/sv-listings
+    newTag: unset
+replicas:
+  - { name: listings, count: 0 }
+patches:
+  - target: { kind: Deployment, name: listings }
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value: { name: ENV, value: prod }
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value: { name: SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_ISSUER_URI, value: "https://auth.sortedvtg.lan:8443/realms/sv-prod" }
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value: { name: SPRING_SECURITY_OAUTH2_RESOURCESERVER_JWT_JWK_SET_URI, value: "http://keycloak-http.keycloak.svc.cluster.local/realms/sv-prod/protocol/openid-connect/certs" }
