@@ -187,9 +187,12 @@ spec:
         fullnameOverride: tempo
         tempo:
           retention: 72h
+          # At 512 Mi Tempo sat at ~492 MB, stopped answering /ready after about 30 minutes and was
+          # killed by its liveness probe (12 restarts in 3 days; 2026-11-07, as Grafana in #25).
+          # 1 Gi leaves room for 72 h of traces; the CPU limit keeps it from taking the node.
           resources:
-            requests: { cpu: 50m, memory: 192Mi }
-            limits: { memory: 512Mi }
+            requests: { cpu: 50m, memory: 384Mi }
+            limits: { cpu: "1", memory: 1Gi }
         persistence: { enabled: true, size: 5Gi }
   destination:
     server: https://kubernetes.default.svc
