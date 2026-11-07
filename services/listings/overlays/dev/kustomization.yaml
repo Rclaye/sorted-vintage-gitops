@@ -8,9 +8,9 @@ resources:
   - ../../base
 images:
   - name: ghcr.io/rclaye/sv-listings
-    newTag: unset
+    newTag: 7bb9db0c2b630b23cfb0fb00f8044f0f0bcead08
 replicas:
-  - { name: listings, count: 0 }
+  - { name: listings, count: 1 }
 patches:
   - target: { kind: Deployment, name: listings }
     patch: |-
