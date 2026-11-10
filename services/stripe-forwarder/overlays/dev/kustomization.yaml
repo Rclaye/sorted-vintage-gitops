@@ -4,3 +4,7 @@ kind: Kustomization
 namespace: sv-dev
 resources:
   - ../../base
+# Temporary (Ticket 2.5 acceptance, 2026-11-10): forwarder stopped to show that onboarding still
+# turns ready through Payments' 5-minute reconciliation (research R5). Reverted right after.
+replicas:
+  - { name: stripe-forwarder, count: 0 }
