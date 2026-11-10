@@ -1,0 +1,6 @@
+# The forwarder uses this environment's Secret stripe (T012): the sv-dev sandbox key.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: sv-dev
+resources:
+  - ../../base

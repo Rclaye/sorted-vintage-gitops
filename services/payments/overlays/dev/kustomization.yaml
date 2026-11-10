@@ -1,0 +1,34 @@
+# Dev: the app repo's build workflow (T029) opens a pull request that sets newTag to the git SHA
+# of the image it pushed. Replicas stay 0 until that first tag; the workflow passes
+# --first-replicas 1 to scripts/set-image-tag.py, which raises them only while they are 0.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: sv-dev
+resources:
+  - ../../base
+images:
+  - name: ghcr.io/rclaye/sv-payments
+    newTag: unset
+replicas:
+  - { name: payments, count: 0 }
+patches:
+  - target: { kind: Deployment, name: payments }
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value: { name: ENV, value: dev }
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value: { name: JWT_ISSUER, value: "https://auth.sortedvtg.lan:8443/realms/sv-dev" }
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value: { name: JWKS_URL, value: "http://keycloak-http.keycloak.svc.cluster.local/realms/sv-dev/protocol/openid-connect/certs" }
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: DATABASE_URL
+          value: "postgresql://$(DB_USER):$(DB_PASSWORD)@pg-rw.sv-dev.svc:5432/payments?sslmode=require"
+      # Stripe's hosted onboarding returns the seller here (Ticket 2.1: the port is needed).
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value: { name: PUBLIC_BASE_URL, value: "https://dev.sortedvtg.lan:8443" }
