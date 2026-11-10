@@ -8,7 +8,7 @@ resources:
   - ../../base
 images:
   - name: ghcr.io/rclaye/sv-listings
-    newTag: 32dd4bf97165231215aeebf04c1c8e129480af68
+    newTag: fef2710b88638d4a32f06f924f90671ed4734372
 replicas:
   - { name: listings, count: 1 }
 patches:
