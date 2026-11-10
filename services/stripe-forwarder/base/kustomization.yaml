@@ -1,0 +1,7 @@
+# Stripe CLI forwarder (T049, research R4): Stripe test events reach Payments through an outbound
+# connection from inside the cluster, so no port is opened to the internet.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - serviceaccount.yaml
+  - deployment.yaml

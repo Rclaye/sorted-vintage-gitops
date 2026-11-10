@@ -1,0 +1,83 @@
+# Meets the T026 policies: non-root, CPU and memory requests and limits, image from ghcr.io/rclaye/.
+# The image is the app repo's mirror.yml copy of stripe/stripe-cli v1.55.2, scanned by Trivy and
+# pinned here by digest, never by tag. Upstream runs as root; it works as 10001 with HOME on /tmp.
+#
+# Two stripe listen sessions on the same key (research R4), signed with the sandbox's one secret,
+# which Payments holds as STRIPE_WEBHOOK_SECRET:
+#   platform: payment_intent events to /webhooks/stripe (Payments adds that route in Sprint 3; until
+#             then these get 404 and are dropped, which loses nothing: no payments exist yet)
+#   connect:  connected-account thin events to /webhooks/stripe-connect (T044)
+# Events sent while the lab is off are not replayed; Payments' reconciliation covers them (R5).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: stripe-forwarder
+  labels: { app.kubernetes.io/name: stripe-forwarder }
+spec:
+  replicas: 1
+  # One session per stream: two forwarders would deliver every event twice (harmless, but noisy).
+  strategy: { type: Recreate }
+  selector:
+    matchLabels: { app.kubernetes.io/name: stripe-forwarder }
+  template:
+    metadata:
+      labels: { app.kubernetes.io/name: stripe-forwarder }
+    spec:
+      serviceAccountName: stripe-forwarder
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile: { type: RuntimeDefault }
+      containers:
+        - name: platform
+          image: ghcr.io/rclaye/stripe-cli@sha256:6fe7ec012be11a59e7749600c452dc7b9a5a3364d3983d50b1830d63ad15b535
+          args:
+            - listen
+            - --skip-update
+            - --events
+            - payment_intent.succeeded,payment_intent.payment_failed
+            - --forward-to
+            - http://payments/webhooks/stripe
+          env:
+            - name: STRIPE_API_KEY
+              valueFrom: { secretKeyRef: { name: stripe, key: secret-key } }
+            - { name: HOME, value: /tmp }
+            - { name: STRIPE_CLI_TELEMETRY_OPTOUT, value: "1" }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: ["ALL"] }
+          resources:
+            requests: { cpu: 10m, memory: 32Mi }
+            limits: { cpu: 200m, memory: 96Mi }
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+        - name: connect
+          image: ghcr.io/rclaye/stripe-cli@sha256:6fe7ec012be11a59e7749600c452dc7b9a5a3364d3983d50b1830d63ad15b535
+          args:
+            - listen
+            - --skip-update
+            - --all-thin
+            - --events-from
+            - "@accounts"
+            - --forward-to
+            - http://payments/webhooks/stripe-connect
+          env:
+            - name: STRIPE_API_KEY
+              valueFrom: { secretKeyRef: { name: stripe, key: secret-key } }
+            - { name: HOME, value: /tmp }
+            - { name: STRIPE_CLI_TELEMETRY_OPTOUT, value: "1" }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: { drop: ["ALL"] }
+          resources:
+            requests: { cpu: 10m, memory: 32Mi }
+            limits: { cpu: 200m, memory: 96Mi }
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+      volumes:
+        - name: tmp
+          emptyDir: { sizeLimit: 16Mi }

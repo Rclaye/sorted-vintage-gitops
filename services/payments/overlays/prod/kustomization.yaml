@@ -1,0 +1,35 @@
+# Prod: changes only through a pull request that waits for approval in the GitHub Environment
+# prod (prod-gate, ADR-0002). promote.yml copies the dev tag here; replicas start at 0 because no
+# image has been promoted yet, and the first promotion raises them (scripts/set-image-tag.py) to:
+# first-prod-replicas: 1
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: sv-prod
+resources:
+  - ../../base
+images:
+  - name: ghcr.io/rclaye/sv-payments
+    newTag: unset
+replicas:
+  - { name: payments, count: 0 }
+patches:
+  - target: { kind: Deployment, name: payments }
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value: { name: ENV, value: prod }
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value: { name: JWT_ISSUER, value: "https://auth.sortedvtg.lan:8443/realms/sv-prod" }
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value: { name: JWKS_URL, value: "http://keycloak-http.keycloak.svc.cluster.local/realms/sv-prod/protocol/openid-connect/certs" }
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: DATABASE_URL
+          value: "postgresql://$(DB_USER):$(DB_PASSWORD)@pg-rw.sv-prod.svc:5432/payments?sslmode=require"
+      # Stripe's hosted onboarding returns the seller here (Ticket 2.1: the port is needed).
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value: { name: PUBLIC_BASE_URL, value: "https://prod.sortedvtg.lan:8443" }

@@ -48,6 +48,8 @@ spec:
               valueFrom: { secretKeyRef: { name: s3-photos, key: ACCESS_KEY_ID } }
             - name: S3_SECRET_ACCESS_KEY
               valueFrom: { secretKeyRef: { name: s3-photos, key: ACCESS_SECRET_KEY } }
+            # Payments, for the payout-status check before publishing (T046).
+            - { name: PAYMENTS_URL, value: "http://payments" }
             # Traces only through the agent; metrics are scraped from /metrics and logs read from stdout.
             - { name: OTEL_SERVICE_NAME, value: listings }
             - { name: OTEL_EXPORTER_OTLP_ENDPOINT, value: "http://otel-collector.monitoring:4318" }
