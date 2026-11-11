@@ -48,8 +48,13 @@ spec:
               valueFrom: { secretKeyRef: { name: s3-photos, key: ACCESS_KEY_ID } }
             - name: S3_SECRET_ACCESS_KEY
               valueFrom: { secretKeyRef: { name: s3-photos, key: ACCESS_SECRET_KEY } }
-            # Payments, for the payout-status check before publishing (T046).
+            # Payments, for the payout-status check before publishing (T046), with Listings' own
+            # client-credentials token: client listings, secret from Terraform (keycloak-clients),
+            # token URL in-cluster per overlay.
             - { name: PAYMENTS_URL, value: "http://payments" }
+            - { name: KEYCLOAK_CLIENT_ID, value: listings }
+            - name: KEYCLOAK_CLIENT_SECRET
+              valueFrom: { secretKeyRef: { name: keycloak-clients, key: listings } }
             # Traces only through the agent; metrics are scraped from /metrics and logs read from stdout.
             - { name: OTEL_SERVICE_NAME, value: listings }
             - { name: OTEL_EXPORTER_OTLP_ENDPOINT, value: "http://otel-collector.monitoring:4318" }
