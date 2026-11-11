@@ -28,6 +28,15 @@ spec:
             - { name: SERVICE_NAME, value: bff }
             - { name: JWT_AZP, value: bff }
             - { name: OTEL_EXPORTER_OTLP_ENDPOINT, value: "http://otel-collector.monitoring:4318" }
+            # Sign-in (T047): the bff client's secret, and the key that encrypts the session cookie
+            # (Terraform: keycloak-clients and bff-session). PUBLIC_BASE_URL is set per overlay.
+            - name: KEYCLOAK_CLIENT_SECRET
+              valueFrom: { secretKeyRef: { name: keycloak-clients, key: bff } }
+            - name: SESSION_COOKIE_KEY
+              valueFrom: { secretKeyRef: { name: bff-session, key: cookie-key } }
+            # The pages call these in-cluster (T048), with the signed-in user's token.
+            - { name: LISTINGS_URL, value: "http://listings" }
+            - { name: PAYMENTS_URL, value: "http://payments" }
           readinessProbe:
             httpGet: { path: /healthz, port: http }
             periodSeconds: 10

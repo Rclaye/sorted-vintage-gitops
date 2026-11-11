@@ -23,3 +23,6 @@ patches:
       - op: add
         path: /spec/template/spec/containers/0/env/-
         value: { name: JWKS_URL, value: "http://keycloak-http.keycloak.svc.cluster.local/realms/sv-dev/protocol/openid-connect/certs" }
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value: { name: PUBLIC_BASE_URL, value: "https://dev.sortedvtg.lan:8443" }
