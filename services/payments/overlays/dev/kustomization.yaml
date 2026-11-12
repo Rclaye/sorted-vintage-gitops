@@ -32,3 +32,8 @@ patches:
       - op: add
         path: /spec/template/spec/containers/0/env/-
         value: { name: PUBLIC_BASE_URL, value: "https://dev.sortedvtg.lan:8443" }
+      # T051: only the seed client's service account may call PUT /connected-accounts/{sub}
+      # (link a seller to a Stripe account onboarded by hand). Unset in prod, so the route is 404.
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value: { name: ACCOUNT_LINK_AZP, value: seed }
