@@ -195,7 +195,7 @@
     {
       "clientId": "seed",
       "name": "Seed job (sv-dev only)",
-      "description": "Service account for the seed job (T051): creates the demo sellers and the verify seller. May only view and manage users.",
+      "description": "Service account for the seed job (T051): creates the demo sellers and the verify seller, and links them to their Stripe accounts in Payments. May only view and manage users.",
       "enabled": true,
       "protocol": "openid-connect",
       "publicClient": false,
@@ -203,7 +203,20 @@
       "standardFlowEnabled": false,
       "directAccessGrantsEnabled": false,
       "serviceAccountsEnabled": true,
-      "implicitFlowEnabled": false
+      "implicitFlowEnabled": false,
+      "protocolMappers": [
+        {
+          "name": "audience-payments",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.client.audience": "payments",
+            "access.token.claim": "true",
+            "id.token.claim": "false",
+            "introspection.token.claim": "true"
+          }
+        }
+      ]
     }
   ],
   "users": [
