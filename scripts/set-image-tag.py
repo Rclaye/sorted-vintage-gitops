@@ -58,7 +58,8 @@ def main() -> None:
         sys.exit(f"bad tag: {args.tag!r}")
     text = text[: tag.start()] + tag["lead"] + args.tag + text[tag.end() :]
 
-    if args.first_replicas is not None:
+    # A Job (the seed job) has no replicas entry: --first-replicas has nothing to raise there.
+    if args.first_replicas is not None and REPLICAS.search(text):
         rep = one(REPLICAS, text, "replicas entry", path)
         if rep["count"] == "0":
             text = text[: rep.start()] + rep["lead"] + str(args.first_replicas) + rep["tail"] + text[rep.end() :]

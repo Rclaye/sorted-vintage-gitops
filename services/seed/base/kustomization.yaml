@@ -1,0 +1,6 @@
+# Seed job (T051). sv-dev only: there is no prod overlay, so no seed-prod Application.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - serviceaccount.yaml
+  - job.yaml
