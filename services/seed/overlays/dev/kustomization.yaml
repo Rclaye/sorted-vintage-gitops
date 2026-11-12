@@ -1,0 +1,10 @@
+# Dev only. The app repo's build workflow (T029) opens a pull request that sets newTag to the git
+# SHA of the image it pushed; each new tag runs the seed job again (PostSync hook).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: sv-dev
+resources:
+  - ../../base
+images:
+  - name: ghcr.io/rclaye/sv-seed
+    newTag: unset
