@@ -1,4 +1,9 @@
 # cert-manager (T017): needed by the CloudNativePG Barman Cloud Plugin (research R10).
+# Known and accepted (platform hygiene, 2026-11-12): the controller restarts every 10 to 20 minutes.
+# Its liveness check includes clockHealth, which fails once the wall clock and its monotonic clock
+# drift more than 5 minutes apart, as Docker Desktop's VM clock does, and stays failed until the
+# process restarts. Restarting is cert-manager's intended recovery and certificates keep working,
+# so the probe is left at the chart's defaults; a longer threshold would only delay each restart.
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
