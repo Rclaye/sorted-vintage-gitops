@@ -8,7 +8,7 @@ resources:
   - ../../base
 images:
   - name: ghcr.io/rclaye/sv-payments
-    newTag: a2a0e7bbabbf973e62e337d8fc0b6546a8a4da94
+    newTag: f1782cc8e49eda0859cd5a00c0f481049c6f192a
 replicas:
   - { name: payments, count: 1 }
 patches:
