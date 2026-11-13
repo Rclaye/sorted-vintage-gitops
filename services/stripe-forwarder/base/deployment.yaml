@@ -8,6 +8,8 @@
 #             then these get 404 and are dropped, which loses nothing: no payments exist yet)
 #   connect:  connected-account thin events to /webhooks/stripe-connect (T044)
 # Events sent while the lab is off are not replayed; Payments' reconciliation covers them (R5).
+# The CLI's signing-secret line is redacted in its own output (command below), so the secret never
+# reaches the node's log files, kubectl logs, or a future log shipper.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -33,6 +35,21 @@ spec:
       containers:
         - name: platform
           image: ghcr.io/rclaye/stripe-cli@sha256:6fe7ec012be11a59e7749600c452dc7b9a5a3364d3983d50b1830d63ad15b535
+          # The CLI prints the webhook signing secret on every (re)connect, at any --log-level
+          # (platform hygiene spike, 2026-11-12). It runs under the image's own BusyBox shell with
+          # its output through awk, which blanks whsec_ values and flushes each line. pipefail keeps
+          # a CLI failure as the container's exit code; when the pod stops, the shell ends and the
+          # kernel stops the rest of the container with it. The args below are the CLI's ("$@").
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -o pipefail
+              trap 'kill -TERM "$pid" 2>/dev/null' TERM INT
+              stripe "$@" 2>&1 | awk '{ gsub(/whsec_[A-Za-z0-9]+/, "whsec_REDACTED"); print; fflush() }' &
+              pid=$!
+              wait "$pid"
+            - stripe-forwarder
           args:
             - listen
             - --skip-update
@@ -56,6 +73,21 @@ spec:
             - { name: tmp, mountPath: /tmp }
         - name: connect
           image: ghcr.io/rclaye/stripe-cli@sha256:6fe7ec012be11a59e7749600c452dc7b9a5a3364d3983d50b1830d63ad15b535
+          # The CLI prints the webhook signing secret on every (re)connect, at any --log-level
+          # (platform hygiene spike, 2026-11-12). It runs under the image's own BusyBox shell with
+          # its output through awk, which blanks whsec_ values and flushes each line. pipefail keeps
+          # a CLI failure as the container's exit code; when the pod stops, the shell ends and the
+          # kernel stops the rest of the container with it. The args below are the CLI's ("$@").
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -o pipefail
+              trap 'kill -TERM "$pid" 2>/dev/null' TERM INT
+              stripe "$@" 2>&1 | awk '{ gsub(/whsec_[A-Za-z0-9]+/, "whsec_REDACTED"); print; fflush() }' &
+              pid=$!
+              wait "$pid"
+            - stripe-forwarder
           args:
             - listen
             - --skip-update
