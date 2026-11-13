@@ -230,6 +230,24 @@ spec:
           processors:
             memory_limiter: { check_interval: 1s, limit_percentage: 80, spike_limit_percentage: 20 }
             batch: {}
+            # Drop whole traces of health checks and Prometheus scrapes (platform hygiene,
+            # 2026-11-12): Listings' /healthz and /metrics made most of Tempo's traces, each
+            # /healthz with two Postgres child spans, so the trace is judged as a whole rather
+            # than span by span. Spans of a trace are held up to decision_wait before export.
+            tail_sampling:
+              decision_wait: 10s
+              num_traces: 5000
+              expected_new_traces_per_sec: 50
+              policies:
+                - name: drop-health-and-metrics
+                  type: drop
+                  drop:
+                    drop_sub_policy:
+                      - name: health-or-metrics-route
+                        type: string_attribute
+                        string_attribute: { key: http.route, values: ["/healthz", "/metrics"] }
+                - name: keep-the-rest
+                  type: always_sample
           exporters:
             otlp/tempo:
               endpoint: tempo.monitoring:4317
@@ -240,7 +258,7 @@ spec:
               metrics_endpoint: http://kube-prometheus-stack-prometheus.monitoring:9090/api/v1/otlp/v1/metrics
           service:
             pipelines:
-              traces: { receivers: [otlp], processors: [memory_limiter, batch], exporters: [otlp/tempo] }
+              traces: { receivers: [otlp], processors: [memory_limiter, tail_sampling, batch], exporters: [otlp/tempo] }
               logs: { receivers: [otlp], processors: [memory_limiter, batch], exporters: [otlphttp/loki] }
               metrics: { receivers: [otlp], processors: [memory_limiter, batch], exporters: [otlphttp/prometheus] }
   destination:
