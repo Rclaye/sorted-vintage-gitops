@@ -1,7 +1,12 @@
 # The ApplicationSet makes this orders-prod in sv-prod. Only the RabbitMQ topology for now (T070);
-# the image tag and settings arrive with the Deployment in Ticket 3.7.
+# the Deployment and settings arrive in Ticket 3.7. The images entry is here already so the app
+# repo's deploy job (dev) and the promote workflow (prod) have a tag to set; kustomize ignores
+# it until a Deployment uses the image.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: sv-prod
 resources:
   - ../../base
+images:
+  - name: ghcr.io/rclaye/sv-orders
+    newTag: bbf86824146b6c2568445cf5e36d3a891192dfbc
