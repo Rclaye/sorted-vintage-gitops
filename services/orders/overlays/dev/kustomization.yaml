@@ -1,0 +1,7 @@
+# The ApplicationSet makes this orders-dev in sv-dev. Only the RabbitMQ topology for now (T070);
+# the image tag and settings arrive with the Deployment in Ticket 3.7.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: sv-dev
+resources:
+  - ../../base

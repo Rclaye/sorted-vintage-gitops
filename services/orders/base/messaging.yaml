@@ -1,0 +1,88 @@
+# T070: the RabbitMQ topology for order events (FR-017, contracts/orders-events.asyncapi.yaml),
+# as Messaging Topology Operator resources on this namespace's RabbitmqCluster "rabbitmq".
+# Proven on a throwaway cluster in the Ticket 3.1 spike (sprints/sprint-3/spikes.md).
+#
+#   orders (topic) --order.paid, order.refunded--> notifications.orders (quorum, 6 deliveries)
+#   notifications.orders --dead letters--> orders.dlx (fanout) --> notifications.orders.dead
+#
+# x-delivery-limit 5 allows six deliveries in all; the Notifications consumer rejects without
+# requeue on its own fifth failure (T072), so the limit only catches a consumer that crashes
+# mid-message. order.failed is published but bound to nothing in v1.
+apiVersion: rabbitmq.com/v1beta1
+kind: Exchange
+metadata:
+  name: orders
+spec:
+  name: orders
+  type: topic
+  durable: true
+  autoDelete: false
+  rabbitmqClusterReference: { name: rabbitmq }
+---
+apiVersion: rabbitmq.com/v1beta1
+kind: Exchange
+metadata:
+  name: orders-dlx
+spec:
+  name: orders.dlx
+  type: fanout
+  durable: true
+  autoDelete: false
+  rabbitmqClusterReference: { name: rabbitmq }
+---
+apiVersion: rabbitmq.com/v1beta1
+kind: Queue
+metadata:
+  name: notifications-orders
+spec:
+  name: notifications.orders
+  type: quorum
+  durable: true
+  autoDelete: false
+  arguments:
+    x-delivery-limit: 5
+    x-dead-letter-exchange: orders.dlx
+  rabbitmqClusterReference: { name: rabbitmq }
+---
+apiVersion: rabbitmq.com/v1beta1
+kind: Queue
+metadata:
+  name: notifications-orders-dead
+spec:
+  name: notifications.orders.dead
+  type: quorum
+  durable: true
+  autoDelete: false
+  rabbitmqClusterReference: { name: rabbitmq }
+---
+apiVersion: rabbitmq.com/v1beta1
+kind: Binding
+metadata:
+  name: orders-paid-to-notifications
+spec:
+  source: orders
+  destination: notifications.orders
+  destinationType: queue
+  routingKey: order.paid
+  rabbitmqClusterReference: { name: rabbitmq }
+---
+apiVersion: rabbitmq.com/v1beta1
+kind: Binding
+metadata:
+  name: orders-refunded-to-notifications
+spec:
+  source: orders
+  destination: notifications.orders
+  destinationType: queue
+  routingKey: order.refunded
+  rabbitmqClusterReference: { name: rabbitmq }
+---
+apiVersion: rabbitmq.com/v1beta1
+kind: Binding
+metadata:
+  name: orders-dlx-to-dead
+spec:
+  source: orders.dlx
+  destination: notifications.orders.dead
+  destinationType: queue
+  rabbitmqClusterReference: { name: rabbitmq }

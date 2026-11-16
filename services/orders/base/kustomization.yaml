@@ -1,0 +1,6 @@
+# Orders (Ticket 3.4). The RabbitMQ topology comes first (T070); the Deployment, Service and
+# settings follow in Ticket 3.7, copied from sorted-vintage-app services/orders/deploy/base.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - messaging.yaml
