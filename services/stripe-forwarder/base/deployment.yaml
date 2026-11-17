@@ -4,8 +4,8 @@
 #
 # Two stripe listen sessions on the same key (research R4), signed with the sandbox's one secret,
 # which Payments holds as STRIPE_WEBHOOK_SECRET:
-#   platform: payment_intent events to /webhooks/stripe (Payments adds that route in Sprint 3; until
-#             then these get 404 and are dropped, which loses nothing: no payments exist yet)
+#   platform: payment_intent succeeded, payment_failed and canceled to /webhooks/stripe (T067);
+#             canceled lets an expired order (T064) fail at once instead of at the next reconcile
 #   connect:  connected-account thin events to /webhooks/stripe-connect (T044)
 # Events sent while the lab is off are not replayed; Payments' reconciliation covers them (R5).
 # The CLI's signing-secret line is redacted in its own output (command below), so the secret never
@@ -54,7 +54,7 @@ spec:
             - listen
             - --skip-update
             - --events
-            - payment_intent.succeeded,payment_intent.payment_failed
+            - payment_intent.succeeded,payment_intent.payment_failed,payment_intent.canceled
             - --forward-to
             - http://payments/webhooks/stripe
           env:
