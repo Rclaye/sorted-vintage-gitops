@@ -41,6 +41,14 @@ spec:
               valueFrom: { secretKeyRef: { name: stripe, key: secret-key } }
             - name: STRIPE_WEBHOOK_SECRET
               valueFrom: { secretKeyRef: { name: stripe, key: webhook-secret } }
+            # Ticket 3.5 (T067): the inbox worker reports payment outcomes to Orders with Payments'
+            # own client-credentials token (research R8). The token URL is set per overlay;
+            # Orders answers at http://orders once it is deployed (Ticket 3.7), and until then
+            # the worker keeps each event and retries.
+            - { name: KEYCLOAK_CLIENT_ID, value: payments }
+            - name: KEYCLOAK_CLIENT_SECRET
+              valueFrom: { secretKeyRef: { name: keycloak-clients, key: payments } }
+            - { name: ORDERS_URL, value: "http://orders" }
           startupProbe:
             tcpSocket: { port: http } # migrations run before the port opens
             periodSeconds: 5
