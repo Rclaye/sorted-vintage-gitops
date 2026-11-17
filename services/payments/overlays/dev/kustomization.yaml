@@ -25,6 +25,9 @@ patches:
         value: { name: JWKS_URL, value: "http://keycloak-http.keycloak.svc.cluster.local/realms/sv-dev/protocol/openid-connect/certs" }
       - op: add
         path: /spec/template/spec/containers/0/env/-
+        value: { name: KEYCLOAK_TOKEN_URL, value: "http://keycloak-http.keycloak.svc.cluster.local/realms/sv-dev/protocol/openid-connect/token" }
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
         value:
           name: DATABASE_URL
           value: "postgresql://$(DB_USER):$(DB_PASSWORD)@pg-rw.sv-dev.svc:5432/payments?sslmode=require"
