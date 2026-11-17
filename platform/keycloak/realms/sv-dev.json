@@ -217,6 +217,19 @@
           }
         }
       ]
+    },
+    {
+      "clientId": "notifications",
+      "name": "Notifications service",
+      "description": "Service account for Notifications (T072): reads buyers' and sellers' email addresses to send order emails. May only view users.",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "${SV_DEV_NOTIFICATIONS_SECRET}",
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "implicitFlowEnabled": false
     }
   ],
   "users": [
@@ -227,6 +240,16 @@
       "clientRoles": {
         "realm-management": [
           "manage-users",
+          "view-users"
+        ]
+      }
+    },
+    {
+      "username": "service-account-notifications",
+      "enabled": true,
+      "serviceAccountClientId": "notifications",
+      "clientRoles": {
+        "realm-management": [
           "view-users"
         ]
       }
