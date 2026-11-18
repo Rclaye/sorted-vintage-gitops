@@ -1,0 +1,22 @@
+# Ticket 3.7 (T074): Notifications' own RabbitMQ user. The topology it reads (notifications.orders
+# and its dead-letter queue) is declared with Orders' events in services/orders/base. The operator
+# generates the user's name and password into Secret notifications-user-credentials. It may read
+# notifications.orders and nothing else; checked against RabbitMQ 4.3.4 on 2026-11-17 (a passive
+# check of the queue, a get and a reject into notifications.orders.dead pass; publishing to
+# orders is refused). Dead-lettering is done by the broker, so it needs no permission here.
+apiVersion: rabbitmq.com/v1beta1
+kind: User
+metadata:
+  name: notifications
+spec:
+  rabbitmqClusterReference: { name: rabbitmq }
+---
+apiVersion: rabbitmq.com/v1beta1
+kind: Permission
+metadata:
+  name: notifications
+spec:
+  vhost: "/"
+  userReference: { name: notifications }
+  permissions: { configure: "^$", write: "^$", read: "^notifications\\.orders$" }
+  rabbitmqClusterReference: { name: rabbitmq }

@@ -86,3 +86,24 @@ spec:
   destination: notifications.orders.dead
   destinationType: queue
   rabbitmqClusterReference: { name: rabbitmq }
+---
+# Ticket 3.7 (T074): Orders' own RabbitMQ user. The operator generates its name and password into
+# Secret orders-user-credentials. It may publish to the orders exchange and nothing else; checked
+# against RabbitMQ 4.3.4 on 2026-11-17 (a passive check of the exchange and a confirmed publish
+# pass, reading notifications.orders is refused).
+apiVersion: rabbitmq.com/v1beta1
+kind: User
+metadata:
+  name: orders
+spec:
+  rabbitmqClusterReference: { name: rabbitmq }
+---
+apiVersion: rabbitmq.com/v1beta1
+kind: Permission
+metadata:
+  name: orders
+spec:
+  vhost: "/"
+  userReference: { name: orders }
+  permissions: { configure: "^$", write: "^orders$", read: "^$" }
+  rabbitmqClusterReference: { name: rabbitmq }

@@ -1,7 +1,5 @@
-# The ApplicationSet makes this orders-dev in sv-dev. Only the RabbitMQ topology for now (T070);
-# the Deployment and settings arrive in Ticket 3.7. The images entry is here already so the app
-# repo's deploy job (dev) and the promote workflow (prod) have a tag to set; kustomize ignores
-# it until a Deployment uses the image.
+# Dev: the app repo's build workflow (T029) opens a pull request that sets newTag to the git SHA
+# of the image it pushed. Deployed in Ticket 3.7 (T074) on the image already built.
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: sv-dev
@@ -10,3 +8,25 @@ resources:
 images:
   - name: ghcr.io/rclaye/sv-orders
     newTag: bbf86824146b6c2568445cf5e36d3a891192dfbc
+replicas:
+  - { name: orders, count: 1 }
+patches:
+  - target: { kind: Deployment, name: orders }
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value: { name: ENV, value: dev }
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value: { name: JWT_ISSUER, value: "https://auth.sortedvtg.lan:8443/realms/sv-dev" }
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value: { name: JWKS_URL, value: "http://keycloak-http.keycloak.svc.cluster.local/realms/sv-dev/protocol/openid-connect/certs" }
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value: { name: KEYCLOAK_TOKEN_URL, value: "http://keycloak-http.keycloak.svc.cluster.local/realms/sv-dev/protocol/openid-connect/token" }
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: DATABASE_URL
+          value: "postgresql://$(DB_USER):$(DB_PASSWORD)@pg-rw.sv-dev.svc:5432/orders?sslmode=require"
