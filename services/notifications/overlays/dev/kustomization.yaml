@@ -7,7 +7,7 @@ resources:
   - ../../base
 images:
   - name: ghcr.io/rclaye/sv-notifications
-    newTag: 1e45a68743e9a005ecf8bf3dad80b054547e7cf4
+    newTag: 4942da6ab3f03ecbdb84686af0f9d0da5cf56600
 replicas:
   - { name: notifications, count: 1 }
 patches:
