@@ -1,0 +1,11 @@
+# Notifications (Ticket 3.6), deployed in Ticket 3.7 (T074) from sorted-vintage-app
+# services/notifications/deploy/base with its own RabbitMQ user. This repo is what Argo CD deploys
+# (ADR-0002).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - messaging.yaml
+  - serviceaccount.yaml
+  - deployment.yaml
+  - service.yaml
+  - servicemonitor.yaml

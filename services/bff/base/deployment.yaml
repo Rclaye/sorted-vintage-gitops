@@ -37,6 +37,12 @@ spec:
             # The pages call these in-cluster (T048), with the signed-in user's token.
             - { name: LISTINGS_URL, value: "http://listings" }
             - { name: PAYMENTS_URL, value: "http://payments" }
+            # Ticket 3.7 (T073): checkout calls Orders with the buyer's token, and the Payment Element
+            # loads with this environment's publishable key (public by design; kept with the other
+            # Stripe values in the Terraform Secret stripe). The BFF before T073 ignores both.
+            - { name: ORDERS_URL, value: "http://orders" }
+            - name: STRIPE_PUBLISHABLE_KEY
+              valueFrom: { secretKeyRef: { name: stripe, key: publishable-key } }
           readinessProbe:
             httpGet: { path: /healthz, port: http }
             periodSeconds: 10

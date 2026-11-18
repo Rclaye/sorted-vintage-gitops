@@ -1,6 +1,18 @@
-# Orders (Ticket 3.4). The RabbitMQ topology comes first (T070); the Deployment, Service and
-# settings follow in Ticket 3.7, copied from sorted-vintage-app services/orders/deploy/base.
+# Orders. The RabbitMQ topology came first (T070, Ticket 3.4); the Deployment, Service and settings
+# follow in Ticket 3.7 (T074), from sorted-vintage-app services/orders/deploy/base with Orders' own
+# RabbitMQ user and the platform fee as a ConfigMap value. This repo is what Argo CD deploys
+# (ADR-0002).
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
   - messaging.yaml
+  - serviceaccount.yaml
+  - deployment.yaml
+  - service.yaml
+  - servicemonitor.yaml
+# The platform fee recorded on each order when checkout starts (FR-013, default 10). Generated, so
+# the name carries a hash and a change rolls the pods.
+configMapGenerator:
+  - name: orders-settings
+    literals:
+      - fee-pct=10.00
