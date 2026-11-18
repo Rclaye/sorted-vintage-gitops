@@ -8,7 +8,7 @@ resources:
   - ingress.yaml
 images:
   - name: ghcr.io/rclaye/sv-bff
-    newTag: 3d713ea31065b8496b84c2691336972d6f7e163f
+    newTag: d4b9825d03053a9d1b4c2fc589611b3d9bc558bc
 replicas:
   - { name: bff, count: 1 }
 patches:
