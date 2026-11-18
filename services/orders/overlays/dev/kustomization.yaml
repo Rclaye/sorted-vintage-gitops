@@ -7,7 +7,7 @@ resources:
   - ../../base
 images:
   - name: ghcr.io/rclaye/sv-orders
-    newTag: bbf86824146b6c2568445cf5e36d3a891192dfbc
+    newTag: 4942da6ab3f03ecbdb84686af0f9d0da5cf56600
 replicas:
   - { name: orders, count: 1 }
 patches:
