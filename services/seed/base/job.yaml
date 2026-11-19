@@ -42,6 +42,7 @@ spec:
             - { name: TLS_CERT_FILE, value: /etc/seed/tls/tls.crt }
             - { name: SELLERS_FILE, value: /etc/seed/sellers/sellers.json }
             - { name: VERIFY_DIR, value: /etc/seed/verify }
+            - { name: BUYER_DIR, value: /etc/seed/buyer }
             - { name: LISTINGS_TOTAL, value: "50" }
           securityContext:
             allowPrivilegeEscalation: false
@@ -53,6 +54,7 @@ spec:
           volumeMounts:
             - { name: sellers, mountPath: /etc/seed/sellers, readOnly: true }
             - { name: verify, mountPath: /etc/seed/verify, readOnly: true }
+            - { name: buyer, mountPath: /etc/seed/buyer, readOnly: true }
             - { name: tls, mountPath: /etc/seed/tls, readOnly: true }
             - { name: tmp, mountPath: /tmp }
       volumes:
@@ -62,6 +64,10 @@ spec:
         # Until seed_sellers lists verify-seller, the user is created from this Secret, unlinked.
         - name: verify
           secret: { secretName: verify-seller }
+        # Ticket 3.8 (T075, T058): the verify buyer, a buyer only (Terraform). Optional, so the Job
+        # still runs before Terraform has created it; the seed image before Ticket 3.8 ignores it.
+        - name: buyer
+          secret: { secretName: verify-buyer, optional: true }
         - name: tls
           configMap: { name: lab-tls-cert }
         - name: tmp
