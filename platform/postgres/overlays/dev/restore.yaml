@@ -1,0 +1,35 @@
+# Restore mode for sv-dev's Postgres (T076, T110). Changed only by pull request; runbook:
+# sorted-vintage-infra docs/runbooks/rebuild.md. Proven on sv-spike (sprints/sprint-4/spikes.md).
+#
+# Normal: initdb mode. `serverName` is the archive in Garage this cluster writes to now: pg.
+#
+# To restore after a destroy (never while the old cluster still runs: it would start writing to
+# the new name and the recovery would miss what came after):
+#   1. confirm a completed base backup newer than what must be kept;
+#   2. destroy; 3. merge a PR that replaces `spec` below with recovery mode:
+#        bootstrap:
+#          initdb: null
+#          recovery:
+#            source: origin
+#            database: listings
+#            owner: listings
+#            secret: { name: pg-listings-app }
+#        externalClusters:
+#          - name: origin
+#            plugin:
+#              name: barman-cloud.cloudnative-pg.io
+#              parameters: { barmanObjectName: backups, serverName: pg }
+#        plugins:  (as below, with serverName: pg-r1)
+#   4. apply; once healthy, a second PR returns this file to initdb mode with serverName: pg-r1
+#      (harmless on the running cluster).
+# A rebuild that forgets the new name comes up empty with archiving failing; Sprint 1's verify
+# check "continuous WAL archiving working" then fails: treat that as "restore not done".
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: pg
+spec:
+  plugins:
+    - name: barman-cloud.cloudnative-pg.io
+      isWALArchiver: true
+      parameters: { barmanObjectName: backups, serverName: pg }

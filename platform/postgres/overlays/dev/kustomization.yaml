@@ -3,3 +3,6 @@ kind: Kustomization
 namespace: sv-dev
 resources:
   - ../../base
+# T076, T110: which archive the cluster writes to, and the restore mode.
+patches:
+  - path: restore.yaml
