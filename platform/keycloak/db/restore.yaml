@@ -29,7 +29,19 @@ kind: Cluster
 metadata:
   name: keycloak-db
 spec:
+  bootstrap:
+    initdb: null
+    recovery:
+      source: origin
+      database: keycloak
+      owner: keycloak
+      secret: { name: pg-keycloak-app }
+  externalClusters:
+    - name: origin
+      plugin:
+        name: barman-cloud.cloudnative-pg.io
+        parameters: { barmanObjectName: backups, serverName: keycloak-db }
   plugins:
     - name: barman-cloud.cloudnative-pg.io
       isWALArchiver: true
-      parameters: { barmanObjectName: backups, serverName: keycloak-db }
+      parameters: { barmanObjectName: backups, serverName: keycloak-db-r1 }
