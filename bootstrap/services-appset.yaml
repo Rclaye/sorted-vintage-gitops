@@ -31,3 +31,8 @@ spec:
         automated:
           prune: true
           selfHeal: true
+        # A sync can time out (10 minutes) waiting for a RabbitMQ User while RabbitMQ is still
+        # starting after a rebuild; without a retry Argo CD never syncs that commit again.
+        retry:
+          limit: 5
+          backoff: { duration: 30s, factor: 2, maxDuration: 5m }

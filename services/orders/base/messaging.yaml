@@ -95,6 +95,11 @@ apiVersion: rabbitmq.com/v1beta1
 kind: User
 metadata:
   name: orders
+  annotations:
+    # Declared before its Permission and the Deployment: a Permission sent before RabbitMQ
+    # has the user fails (vhost_or_user_not_found) and the operator backs off for up to 16
+    # minutes (rebuild drill, 2026-11-20). Waits on Argo CD's Ready health check (infra).
+    argocd.argoproj.io/sync-wave: "-1"
 spec:
   rabbitmqClusterReference: { name: rabbitmq }
 ---
