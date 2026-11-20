@@ -1,7 +1,7 @@
 # Seed job (T051), sv-dev only: demo sellers in Keycloak linked to their Stripe test accounts, and
-# 50 listings with photos. Runs after every sync of seed-dev (an Argo CD PostSync hook), so a new
-# image runs it again; it only creates what is missing. Meets the T026 policies: non-root, CPU and
-# memory requests and limits, image from ghcr.io/rclaye/.
+# 50 listings with photos. Runs after every sync of seed-dev (an Argo CD PostSync hook); the dev
+# overlay makes a new image trigger a sync. It only creates what is missing. Meets the T026
+# policies: non-root, CPU and memory requests and limits, image from ghcr.io/rclaye/.
 # Label lab-live=true: the workstation's live pane follows its log.
 apiVersion: batch/v1
 kind: Job
