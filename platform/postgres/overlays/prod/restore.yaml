@@ -1,7 +1,7 @@
 # Restore mode for sv-prod's Postgres (T076, T110). Changed only by pull request; runbook:
 # sorted-vintage-infra docs/runbooks/rebuild.md. Proven on sv-spike (sprints/sprint-4/spikes.md).
 #
-# Normal: initdb mode. `serverName` is the archive in Garage this cluster writes to now: pg-r1 (since the rebuild drill of 2026-11-19; before that pg).
+# Normal: initdb mode. `serverName` is the archive in Garage this cluster writes to now: pg-r2 (since the rebuild drill of 2026-11-20; before that pg-r1, then pg).
 #
 # To restore after a destroy (never while the old cluster still runs: it would start writing to
 # the new name and the recovery would miss what came after):
@@ -18,9 +18,9 @@
 #          - name: origin
 #            plugin:
 #              name: barman-cloud.cloudnative-pg.io
-#              parameters: { barmanObjectName: backups, serverName: pg-r1 }
-#        plugins:  (as below, with serverName: pg-r2)
-#   4. apply; once healthy, a second PR returns this file to initdb mode with serverName: pg-r2
+#              parameters: { barmanObjectName: backups, serverName: pg-r2 }
+#        plugins:  (as below, with serverName: pg-r3)
+#   4. apply; once healthy, a second PR returns this file to initdb mode with serverName: pg-r3
 #      (harmless on the running cluster).
 # A rebuild that forgets the new name comes up empty with archiving failing; Sprint 1's verify
 # check "continuous WAL archiving working" then fails: treat that as "restore not done".
@@ -29,18 +29,6 @@ kind: Cluster
 metadata:
   name: pg
 spec:
-  bootstrap:
-    initdb: null
-    recovery:
-      source: origin
-      database: listings
-      owner: listings
-      secret: { name: pg-listings-app }
-  externalClusters:
-    - name: origin
-      plugin:
-        name: barman-cloud.cloudnative-pg.io
-        parameters: { barmanObjectName: backups, serverName: pg-r1 }
   plugins:
     - name: barman-cloud.cloudnative-pg.io
       isWALArchiver: true
