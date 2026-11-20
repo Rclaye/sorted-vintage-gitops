@@ -29,7 +29,19 @@ kind: Cluster
 metadata:
   name: pg
 spec:
+  bootstrap:
+    initdb: null
+    recovery:
+      source: origin
+      database: listings
+      owner: listings
+      secret: { name: pg-listings-app }
+  externalClusters:
+    - name: origin
+      plugin:
+        name: barman-cloud.cloudnative-pg.io
+        parameters: { barmanObjectName: backups, serverName: pg-r1 }
   plugins:
     - name: barman-cloud.cloudnative-pg.io
       isWALArchiver: true
-      parameters: { barmanObjectName: backups, serverName: pg-r1 }
+      parameters: { barmanObjectName: backups, serverName: pg-r2 }
