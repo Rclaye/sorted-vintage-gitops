@@ -7,4 +7,4 @@ resources:
   - ../../base
 images:
   - name: ghcr.io/rclaye/sv-seed
-    newTag: 246de2a0df4ad56784183b64fa9eca0bc403edb3
+    newTag: fa8f88a7f73c7879538bef1408f9b23d34f9b0af
